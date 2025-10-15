@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ndabase IT Helpdesk</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Login Page -->
+        <div id="loginPage" class="page">
+            <div class="login-container">
+                <div class="logo">
+                    <div class="ndabase-logo">
+                        <div class="logo-circle">
+                            <div class="logo-segment segment-1"></div>
+                            <div class="logo-segment segment-2"></div>
+                            <div class="logo-segment segment-3"></div>
+                            <div class="logo-segment segment-4"></div>
+                        </div>
+                        <div class="logo-text">
+                            <span class="logo-ndabase">ndabase</span>
+                            <span class="logo-tagline">printingsolutions</span>
+                        </div>
+                    </div>
+                    <h1>IT Helpdesk System</h1>
+                </div>
+                <form id="loginForm">
+                    <h2>Login</h2>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                    <div id="loginError" class="error"></div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main Dashboard (All Roles) -->
+        <div id="dashboardPage" class="page" style="display: none;">
+            <!-- Navigation Bar -->
+            <nav class="navbar">
+                <div class="nav-brand">
+                    <span class="nav-logo-icon">🎨</span>
+                    <span class="nav-logo-text">ndabase</span> IT Helpdesk
+                </div>
+                <div class="nav-menu">
+                    <a href="#" class="nav-link active" data-page="dashboard">Dashboard</a>
+                    <a href="#" class="nav-link" data-page="tickets">My Tickets</a>
+                    <a href="#" class="nav-link" data-page="create" style="display: none;">Create Ticket</a>
+                    <a href="#" class="nav-link" data-page="users" style="display: none;">Manage Users</a>
+                    <a href="#" class="nav-link" data-page="reports" style="display: none;">Reports</a>
+                </div>
+                <div class="nav-user">
+                    <span id="userName"></span> 
+                    <span id="userRole" class="badge"></span>
+                    <button id="logoutBtn" class="btn btn-sm">Logout</button>
+                </div>
+            </nav>
+
+            <!-- Content Area -->
+            <div class="container">
+                <!-- Dashboard Overview -->
+                <div id="dashboardSection" class="section active">
+                    <h2>Welcome, <span id="welcomeName"></span>!</h2>
+                    <div id="dashboardContent"></div>
+                </div>
+
+                <!-- My Tickets -->
+                <div id="ticketsSection" class="section">
+                    <h2>Tickets</h2>
+                    <div class="filters">
+                        <select id="filterStatus">
+                            <option value="">All Status</option>
+                            <option value="Open">Open</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Resolved">Resolved</option>
+                            <option value="Closed">Closed</option>
+                        </select>
+                        <select id="filterPriority">
+                            <option value="">All Priorities</option>
+                            <option value="Normal">Normal</option>
+                            <option value="High">High</option>
+                            <option value="Urgent">Urgent</option>
+                        </select>
+                        <button id="refreshTickets" class="btn">Refresh</button>
+                    </div>
+                    <div id="ticketsList" class="tickets-list"></div>
+                </div>
+
+                <!-- Create Ticket (Helpdesk Officer Only) -->
+                <div id="createSection" class="section">
+                    <h2>Create New Ticket</h2>
+                    <form id="createTicketForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="ticketUserName">User Name *</label>
+                                <input type="text" id="ticketUserName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="userEmail">User Email *</label>
+                                <input type="email" id="userEmail" required>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="userPhone">User Phone *</label>
+                                <input type="tel" id="userPhone" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="priority">Priority *</label>
+                                <select id="priority" required>
+                                    <option value="Normal">Normal</option>
+                                    <option value="High">High</option>
+                                    <option value="Urgent">Urgent</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="assignee">Assign To *</label>
+                            <select id="assignee" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="problemSummary">Problem Summary *</label>
+                            <input type="text" id="problemSummary" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="problemDescription">Detailed Description</label>
+                            <textarea id="problemDescription" rows="4"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create Ticket</button>
+                        <div id="createError" class="error"></div>
+                        <div id="createSuccess" class="success"></div>
+                    </form>
+                </div>
+
+                <!-- Manage Users (Admin and Technicians) -->
+                <div id="usersSection" class="section">
+                    <h2>Manage Users</h2>
+                    <button id="showCreateUserBtn" class="btn btn-primary" style="margin-bottom: 20px;">+ Create New User</button>
+                    
+                    <!-- Create User Form (Initially Hidden) -->
+                    <div id="createUserForm" class="card" style="display: none; margin-bottom: 20px;">
+                        <h3>Create New User</h3>
+                        <form id="userForm">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="newUserName">Full Name *</label>
+                                    <input type="text" id="newUserName" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="newUserEmail">Email *</label>
+                                    <input type="email" id="newUserEmail" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="newUserPhone">Phone</label>
+                                    <input type="tel" id="newUserPhone">
+                                </div>
+                                <div class="form-group">
+                                    <label for="newUserPassword">Password *</label>
+                                    <input type="password" id="newUserPassword" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="newUserRole">Role *</label>
+                                    <select id="newUserRole" required>
+                                        <option value="technician">Technician</option>
+                                        <option value="helpdesk_officer">Helpdesk Officer</option>
+                                        <option value="admin">Admin</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="technicianTypeGroup">
+                                    <label for="newUserTechType">Technician Specialization</label>
+                                    <select id="newUserTechType">
+                                        <option value="">Select Type (Optional)</option>
+                                        <option value="IT Support Technician">IT Support Technician</option>
+                                        <option value="Network Technician">Network Technician</option>
+                                        <option value="Systems Technician">Systems Technician</option>
+                                        <option value="Field Technician">Field Technician</option>
+                                        <option value="Helpdesk Technician">Helpdesk Technician</option>
+                                        <option value="Electronics Technician">Electronics Technician</option>
+                                        <option value="General Technician">General Technician</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn btn-primary">Create User</button>
+                                <button type="button" id="cancelCreateUser" class="btn">Cancel</button>
+                            </div>
+                            <div id="userFormError" class="error"></div>
+                            <div id="userFormSuccess" class="success"></div>
+                        </form>
+                    </div>
+
+                    <!-- Users List -->
+                    <div id="usersList" class="users-list"></div>
+                </div>
+
+                <!-- Reports (Admin Only) -->
+                <div id="reportsSection" class="section">
+                    <h2>Reports & Analytics</h2>
+                    <div class="report-filters">
+                        <div class="form-group">
+                            <label for="reportStartDate">Start Date</label>
+                            <input type="datetime-local" id="reportStartDate">
+                        </div>
+                        <div class="form-group">
+                            <label for="reportEndDate">End Date</label>
+                            <input type="datetime-local" id="reportEndDate">
+                        </div>
+                        <button id="loadStats" class="btn">Load Statistics</button>
+                        <button id="exportCSV" class="btn btn-success">Export to CSV</button>
+                    </div>
+                    <div id="statisticsDisplay" class="statistics"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ticket Detail Modal -->
+        <div id="ticketModal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <div id="ticketDetail"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
