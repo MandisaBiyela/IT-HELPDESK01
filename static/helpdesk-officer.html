@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Helpdesk Officer Dashboard - Ndabase IT Helpdesk</title>
-    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/ticket-details-modal.css">
+    <link rel="stylesheet" href="/static/css/profile.css">
     <style>
         /* Helpdesk Officer Specific Styles */
         .helpdesk-layout {
@@ -373,6 +375,97 @@
             font-size: 64px;
             margin-bottom: 20px;
         }
+
+        /* Statistics Dashboard */
+        .stats-dashboard {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px 8px 0 0;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-card.total {
+            border-top: 4px solid #0066cc;
+        }
+
+        .stat-card.solved {
+            border-top: 4px solid #4caf50;
+        }
+
+        .stat-card.unsolved {
+            border-top: 4px solid #ff9800;
+        }
+
+        /* Active Tickets Panel */
+        .tech-tickets {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .tech-ticket-item {
+            font-size: 11px;
+            padding: 4px 0;
+            color: #666;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tech-ticket-priority {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+
+        .tech-ticket-priority.urgent {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .tech-ticket-priority.high {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .tech-ticket-priority.normal {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .tech-ticket-more {
+            font-size: 11px;
+            color: #666;
+            font-style: italic;
+            padding: 4px 0;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -390,26 +483,59 @@
                 <span class="logo-text">IT Helpdesk</span>
             </div>
             <div class="header-right">
+                <span style="color: #4caf50; margin-right: 15px; font-size: 12px;">
+                    <span style="display: inline-block; width: 8px; height: 8px; background: #4caf50; border-radius: 50%; animation: pulse 2s infinite; margin-right: 5px;"></span>
+                    <span id="lastUpdate">Live Updates</span>
+                </span>
                 <span class="user-role">Helpdesk Officer</span>
                 <span class="user-name" id="userName">Loading...</span>
+                <button class="profile-menu-btn" onclick="showProfileModal()" style="margin-left: 10px; padding: 6px 12px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                    <span class="profile-icon">👤</span> Profile
+                </button>
+                <button class="profile-menu-btn" onclick="showPasswordModal()" style="margin-left: 8px; padding: 6px 12px; background: #607D8B; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                    <span class="profile-icon">🔒</span> Password
+                </button>
                 <button onclick="logout()" class="logout-btn">Logout</button>
             </div>
         </div>
     </header>
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
 
     <!-- Main Layout -->
     <div class="helpdesk-layout">
         <!-- Main Panel -->
         <div class="main-panel">
+            <!-- Statistics Dashboard -->
+            <div class="stats-dashboard">
+                <div class="stat-card total">
+                    <div class="stat-value" id="statTotal">0</div>
+                    <div class="stat-label">Total Tickets</div>
+                </div>
+                <div class="stat-card solved">
+                    <div class="stat-value" id="statSolved">0</div>
+                    <div class="stat-label">Solved</div>
+                </div>
+                <div class="stat-card unsolved">
+                    <div class="stat-value" id="statUnsolved">0</div>
+                    <div class="stat-label">Unsolved</div>
+                </div>
+            </div>
+
             <!-- Filter Bar -->
             <div class="filter-bar">
                 <button class="filter-btn active" onclick="applyFilter('all')">All Tickets</button>
                 <button class="filter-btn" onclick="applyFilter('today')">Today</button>
-                <button class="filter-btn" onclick="applyFilter('unassigned')">Unassigned</button>
                 <button class="filter-btn" onclick="applyFilter('urgent')">Urgent</button>
-                <button class="filter-btn" onclick="applyFilter('my')">My Created</button>
+                <button class="create-ticket-btn" onclick="openManageUsersModal()" style="background: #0066cc; margin-right: 10px;">
+                    Manage Users
+                </button>
                 <button class="create-ticket-btn" onclick="openCreateModal()">
-                    <span>+</span> Create Ticket
+                    + Create Ticket
                 </button>
             </div>
 
@@ -417,7 +543,7 @@
             <div class="ticket-list" id="ticketList">
                 <!-- Tickets will be loaded here -->
                 <div class="empty-state">
-                    <div class="empty-state-icon">📋</div>
+                    <div class="empty-state-icon" style="font-size: 48px; color: #ccc;">...</div>
                     <p>Loading tickets...</p>
                 </div>
             </div>
@@ -425,7 +551,7 @@
 
         <!-- Sidebar Panel -->
         <div class="sidebar-panel">
-            <div class="tech-title">On-Call Technicians</div>
+            <div class="tech-title">On-Call Technicians - Active Tickets</div>
             <div class="tech-list" id="techList">
                 <!-- Technicians will be loaded here -->
                 <p style="color: #999; font-size: 13px;">Loading...</p>
@@ -480,6 +606,213 @@
         </div>
     </div>
 
-    <script src="/js/helpdesk-officer.js"></script>
+    <!-- Manage Users Modal -->
+    <div class="modal-overlay" id="manageUsersModal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 class="modal-title">Manage Users</h2>
+                <button class="close-btn" onclick="closeManageUsersModal()">&times;</button>
+            </div>
+            <div style="padding: 20px;">
+                <button class="submit-btn" onclick="showCreateUserForm()" style="margin-bottom: 20px;">+ Create New User</button>
+                
+                <!-- Create User Form (Initially Hidden) -->
+                <div id="createUserForm" style="display: none; margin-bottom: 20px; background: #f5f5f5; padding: 20px; border-radius: 8px;">
+                    <h3>Create New User</h3>
+                    <form id="userForm" onsubmit="createUser(event)">
+                        <div class="form-group">
+                            <label>Full Name <span class="required">*</span></label>
+                            <input type="text" id="newUserName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Email <span class="required">*</span></label>
+                            <input type="email" id="newUserEmail" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="tel" id="newUserPhone">
+                        </div>
+                        <div class="form-group">
+                            <label>Password <span class="required">*</span></label>
+                            <input type="password" id="newUserPassword" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Role <span class="required">*</span></label>
+                            <select id="newUserRole" required onchange="toggleTechnicianType()">
+                                <option value="technician">Technician</option>
+                                <option value="helpdesk_officer">Helpdesk Officer</option>
+                                <option value="ict_manager">ICT Manager</option>
+                                <option value="ict_gm">ICT GM</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="technicianTypeGroup">
+                            <label>Technician Specialization</label>
+                            <select id="newUserTechType">
+                                <option value="">Select Type (Optional)</option>
+                                <option value="IT Support Technician">IT Support Technician</option>
+                                <option value="Network Technician">Network Technician</option>
+                                <option value="Systems Technician">Systems Technician</option>
+                                <option value="Field Technician">Field Technician</option>
+                                <option value="Helpdesk Technician">Helpdesk Technician</option>
+                                <option value="Electronics Technician">Electronics Technician</option>
+                                <option value="General Technician">General Technician</option>
+                            </select>
+                        </div>
+                        <div style="margin-top: 15px;">
+                            <button type="submit" class="submit-btn">Create User</button>
+                            <button type="button" class="filter-btn" onclick="hideCreateUserForm()" style="margin-left: 10px;">Cancel</button>
+                        </div>
+                        <div id="userFormError" style="color: red; margin-top: 10px;"></div>
+                        <div id="userFormSuccess" style="color: green; margin-top: 10px;"></div>
+                    </form>
+                </div>
+
+                <!-- Users List -->
+                <div id="usersList" style="display: grid; gap: 15px;">
+                    <p style="color: #999; text-align: center;">Loading users...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Management Modals -->
+    <div id="profileModal" class="profile-modal">
+        <div class="profile-modal-content">
+            <div class="profile-modal-header">
+                <h2>✏️ Edit Profile</h2>
+                <button class="profile-modal-close" onclick="hideProfileModal()">&times;</button>
+            </div>
+            <div class="profile-modal-body">
+                <div id="profileError" class="profile-error" style="display: none;"></div>
+                <div id="profileSuccess" class="profile-success" style="display: none;"></div>
+                
+                <form id="profileForm">
+                    <div class="profile-form-group">
+                        <label for="profileName">Full Name</label>
+                        <input type="text" id="profileName" required>
+                    </div>
+                    
+                    <div class="profile-form-group">
+                        <label for="profileEmail">Email Address</label>
+                        <input type="email" id="profileEmail" required>
+                    </div>
+                    
+                    <div class="profile-form-group">
+                        <label for="profilePhone">Phone Number</label>
+                        <input type="tel" id="profilePhone">
+                    </div>
+                    
+                    <div class="profile-form-actions">
+                        <button type="submit" class="profile-btn profile-btn-primary">
+                            💾 Save Changes
+                        </button>
+                        <button type="button" class="profile-btn profile-btn-secondary" onclick="hideProfileModal()">
+                            ✖ Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="passwordModal" class="profile-modal">
+        <div class="profile-modal-content">
+            <div class="profile-modal-header">
+                <h2>🔒 Change Password</h2>
+                <button class="profile-modal-close" onclick="hidePasswordModal()">&times;</button>
+            </div>
+            <div class="profile-modal-body">
+                <div id="passwordError" class="profile-error" style="display: none;"></div>
+                <div id="passwordSuccess" class="profile-success" style="display: none;"></div>
+                
+                <form id="passwordForm">
+                    <div class="profile-form-group">
+                        <label for="currentPassword">Current Password</label>
+                        <div class="password-field-wrapper">
+                            <input type="password" id="currentPassword" required>
+                            <span class="password-toggle-icon" onclick="togglePasswordField('currentPassword')">👁️</span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-form-group">
+                        <label for="newPassword">New Password</label>
+                        <div class="password-field-wrapper">
+                            <input type="password" id="newPassword" required minlength="6">
+                            <span class="password-toggle-icon" onclick="togglePasswordField('newPassword')">👁️</span>
+                        </div>
+                        <small style="color: #666; font-size: 12px;">Minimum 6 characters</small>
+                    </div>
+                    
+                    <div class="profile-form-group">
+                        <label for="confirmPassword">Confirm New Password</label>
+                        <div class="password-field-wrapper">
+                            <input type="password" id="confirmPassword" required minlength="6">
+                            <span class="password-toggle-icon" onclick="togglePasswordField('confirmPassword')">👁️</span>
+                        </div>
+                    </div>
+                    
+                    <div class="profile-form-actions">
+                        <button type="submit" class="profile-btn profile-btn-primary">
+                            🔐 Change Password
+                        </button>
+                        <button type="button" class="profile-btn profile-btn-secondary" onclick="hidePasswordModal()">
+                            ✖ Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/profile.js"></script>
+    <script>
+    // Profile modal helper functions
+    function togglePasswordField(fieldId) {
+        const field = document.getElementById(fieldId);
+        const icon = field.nextElementSibling;
+        
+        if (field.type === 'password') {
+            field.type = 'text';
+            icon.textContent = '🙈';
+        } else {
+            field.type = 'password';
+            icon.textContent = '👁️';
+        }
+    }
+
+    function showProfileError(message) {
+        const errorEl = document.getElementById('profileError');
+        const successEl = document.getElementById('profileSuccess');
+        errorEl.textContent = message;
+        errorEl.style.display = 'block';
+        successEl.style.display = 'none';
+    }
+
+    function showProfileSuccess(message) {
+        const errorEl = document.getElementById('profileError');
+        const successEl = document.getElementById('profileSuccess');
+        successEl.textContent = message;
+        successEl.style.display = 'block';
+        errorEl.style.display = 'none';
+    }
+
+    function showPasswordError(message) {
+        const errorEl = document.getElementById('passwordError');
+        const successEl = document.getElementById('passwordSuccess');
+        errorEl.textContent = message;
+        errorEl.style.display = 'block';
+        successEl.style.display = 'none';
+    }
+
+    function showPasswordSuccess(message) {
+        const errorEl = document.getElementById('passwordError');
+        const successEl = document.getElementById('passwordSuccess');
+        successEl.textContent = message;
+        successEl.style.display = 'block';
+        errorEl.style.display = 'none';
+    }
+    </script>
+    <script src="/static/js/helpdesk-officer.js?v=3.4"></script>
 </body>
 </html>
+

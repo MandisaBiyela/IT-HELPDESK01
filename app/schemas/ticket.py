@@ -19,6 +19,9 @@ class TicketUpdate(BaseModel):
     priority: Optional[TicketPriority] = None
     assignee_id: Optional[int] = None
     update_text: Optional[str] = None
+    is_internal: Optional[bool] = False
+    time_spent: Optional[int] = None
+    reassign_reason: Optional[str] = None
 
 
 class TicketUpdateCreate(BaseModel):
@@ -38,6 +41,9 @@ class TicketUpdateResponse(BaseModel):
     new_assignee_id: Optional[int] = None
     old_priority: Optional[str] = None
     new_priority: Optional[str] = None
+    is_internal: Optional[bool] = False
+    time_spent: Optional[int] = None
+    reassign_reason: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -70,11 +76,16 @@ class TicketListResponse(BaseModel):
     id: int
     ticket_number: str
     user_name: str
+    user_email: str
+    user_phone: str
     problem_summary: str
     priority: TicketPriority
     status: TicketStatus
     assignee_name: str
+    assignee: Optional[dict] = None  # Add assignee object for detailed info
+    assignee_id: Optional[int] = None
     created_at: datetime
+    resolved_at: Optional[datetime] = None
     sla_deadline: datetime
     
     class Config:

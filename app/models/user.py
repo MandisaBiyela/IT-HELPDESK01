@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Enum as SQLEnum, DateTime
 from sqlalchemy.orm import relationship
 from app.database import Base
-from datetime import datetime
+from app.utils.timezone import get_sa_time
 import enum
 
 
@@ -31,8 +31,8 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     phone = Column(String, nullable=True)
     hashed_password = Column(String, nullable=False)
-    role = Column(SQLEnum(UserRole), default=UserRole.TECHNICIAN)
-    technician_type = Column(SQLEnum(TechnicianType), nullable=True)  # Only for technicians
+    role = Column(String(16), default="technician")  # Store as string, validate with UserRole enum
+    technician_type = Column(String(11), nullable=True)  # Only for technicians
     is_active = Column(Integer, default=1)
     last_login = Column(DateTime, nullable=True)
     

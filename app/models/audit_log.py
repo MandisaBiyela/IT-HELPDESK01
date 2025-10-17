@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
 from app.database import Base
-from datetime import datetime
+from app.utils.timezone import get_sa_time
 
 
 class AuditLog(Base):
@@ -13,7 +13,7 @@ class AuditLog(Base):
     action = Column(String, nullable=False)  # 'created', 'updated', 'assigned', 'escalated'
     performed_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Null for system actions
     details = Column(Text, nullable=True)  # JSON string with additional details
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=get_sa_time, nullable=False)
     
     # Relationship
     performed_by = relationship("User", foreign_keys=[performed_by_id])

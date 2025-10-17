@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from app.database import Base
-from datetime import datetime
+from app.utils.timezone import get_sa_time
 import enum
 
 
@@ -14,6 +14,7 @@ class TicketPriority(str, enum.Enum):
 class TicketStatus(str, enum.Enum):
     OPEN = "Open"
     IN_PROGRESS = "In Progress"
+    WAITING_ON_USER = "Waiting on User"
     RESOLVED = "Resolved"
     CLOSED = "Closed"
 
@@ -45,8 +46,8 @@ class Ticket(Base):
     assignee_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     
     # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=get_sa_time, nullable=False)
+    updated_at = Column(DateTime, default=get_sa_time, onupdate=get_sa_time, nullable=False)
     resolved_at = Column(DateTime, nullable=True)
     sla_deadline = Column(DateTime, nullable=False)
     
@@ -68,7 +69,7 @@ class TicketUpdate(Base):
     ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False)
     update_text = Column(Text, nullable=False)
     updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=get_sa_time, nullable=False)
     
     # Change tracking
     old_status = Column(String, nullable=True)
@@ -94,7 +95,7 @@ class SLAEscalation(Base):
     id = Column(Integer, primary_key=True, index=True)
     ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False)
     escalation_reason = Column(Text, nullable=False)
-    escalated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    escalated_at = Column(DateTime, default=get_sa_time, nullable=False)
     previous_priority = Column(String, nullable=True)
     new_priority = Column(String, nullable=True)
     

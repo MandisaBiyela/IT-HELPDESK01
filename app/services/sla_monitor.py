@@ -82,7 +82,7 @@ class SLAMonitor:
         if ticket.escalated:
             return
         
-        logger.warning(f"🚨 SLA BREACH for ticket {ticket.ticket_number}")
+        logger.warning(f"SLA BREACH for ticket {ticket.ticket_number}")
         
         # Store old priority for audit
         old_priority = ticket.priority.value
@@ -198,10 +198,10 @@ class SLAMonitor:
                     """
                 )
             
-            logger.info(f"✅ Escalation notifications sent for {ticket.ticket_number}")
+            logger.info(f"Escalation notifications sent for {ticket.ticket_number}")
             
         except Exception as e:
-            logger.error(f"❌ Failed to send escalation notifications: {str(e)}")
+            logger.error(f"Failed to send escalation notifications: {str(e)}")
     
     async def handle_sla_warning(self, db: Session, ticket: Ticket):
         """Handle SLA warning - send pre-expiry alert (2 minutes before deadline)"""

@@ -60,6 +60,9 @@
         .column-resolved { border-color: #4caf50; }
         .column-resolved .kanban-header h3 { color: #4caf50; }
 
+        .column-closed { border-color: #666; }
+        .column-closed .kanban-header h3 { color: #666; }
+
         .kanban-cards {
             flex: 1;
             overflow-y: auto;
@@ -146,6 +149,7 @@
             line-height: 1.3;
             display: -webkit-box;
             -webkit-line-clamp: 2;
+            line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
@@ -371,6 +375,42 @@
             color: #666;
             display: flex;
             gap: 15px;
+        }
+
+        /* Timeline Status Changes */
+        .timeline-status-change,
+        .timeline-priority-change,
+        .timeline-assignee-change {
+            margin: 8px 0;
+            padding: 8px 12px;
+            background: #e3f2fd;
+            border-left: 3px solid #2196f3;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .timeline-status-change strong,
+        .timeline-priority-change strong,
+        .timeline-assignee-change strong {
+            color: #1976d2;
+        }
+
+        .status-old, .status-new {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .status-old {
+            background: #f5f5f5;
+            color: #666;
+            text-decoration: line-through;
+        }
+
+        .status-new {
+            background: #4caf50;
+            color: white;
         }
 
         /* Action Buttons */
@@ -658,14 +698,25 @@
 <body>
     <nav class="navbar">
         <div class="nav-brand">
-            <h1>🛠️ Ndabase IT Helpdesk</h1>
-            <span class="nav-subtitle">Technician Workbench</span>
+            <h1>Ndabase IT Helpdesk</h1>
+            <span class="nav-subtitle">Technician Workbench - All Tickets (Real-Time)</span>
         </div>
         <div class="nav-user">
+            <button onclick="openCreateTicketModal()" class="btn-create-ticket" style="background: var(--primary-orange); color: white; padding: 8px 16px; border: none; border-radius: 6px; margin-right: 15px; cursor: pointer; font-weight: 600;">+ Create Ticket</button>
+            <span style="color: #4caf50; margin-right: 10px; font-size: 12px;">
+                <span style="display: inline-block; width: 8px; height: 8px; background: #4caf50; border-radius: 50%; animation: pulse 2s infinite; margin-right: 5px;"></span>
+                <span id="lastUpdate">Loading...</span>
+            </span>
             <span id="userName">Loading...</span>
             <button onclick="logout()" class="btn-logout">Logout</button>
         </div>
     </nav>
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
 
     <div style="padding: 20px; max-width: 1800px; margin: 0 auto;">
         <!-- Stats Bar -->
@@ -676,11 +727,11 @@
             </div>
             <div class="stat-item escalated">
                 <div class="stat-value" id="escalatedCount">0</div>
-                <div class="stat-label">⚠️ Escalated</div>
+                <div class="stat-label">Escalated</div>
             </div>
             <div class="stat-item resolved-today">
                 <div class="stat-value" id="resolvedTodayCount">0</div>
-                <div class="stat-label">✅ Resolved Today</div>
+                <div class="stat-label">Resolved Today</div>
             </div>
         </div>
 
@@ -689,7 +740,7 @@
             <!-- Open Column -->
             <div class="kanban-column column-open">
                 <div class="kanban-header">
-                    <h3>📋 Open</h3>
+                    <h3>Open</h3>
                     <span class="kanban-count" id="openCount">0</span>
                 </div>
                 <div class="kanban-cards" id="openCards" data-status="Open">
@@ -700,7 +751,7 @@
             <!-- In Progress Column -->
             <div class="kanban-column column-progress">
                 <div class="kanban-header">
-                    <h3>🔧 In Progress</h3>
+                    <h3> In Progress</h3>
                     <span class="kanban-count" id="progressCount">0</span>
                 </div>
                 <div class="kanban-cards" id="progressCards" data-status="In Progress">
@@ -711,7 +762,7 @@
             <!-- Waiting Column -->
             <div class="kanban-column column-waiting">
                 <div class="kanban-header">
-                    <h3>⏸️ Waiting</h3>
+                    <h3>Waiting</h3>
                     <span class="kanban-count" id="waitingCount">0</span>
                 </div>
                 <div class="kanban-cards" id="waitingCards" data-status="Waiting on User">
@@ -722,10 +773,20 @@
             <!-- Resolved Column -->
             <div class="kanban-column column-resolved">
                 <div class="kanban-header">
-                    <h3>✅ Resolved</h3>
+                    <h3>Resolved</h3>
                     <span class="kanban-count" id="resolvedCount">0</span>
                 </div>
                 <div class="kanban-cards" id="resolvedCards" data-status="Resolved">
+                    <!-- Cards will be inserted here -->
+                </div>
+            </div>
+
+            <div class="kanban-column column-closed">
+                <div class="kanban-header">
+                    <h3>Closed</h3>
+                    <span class="kanban-count" id="closedCount">0</span>
+                </div>
+                <div class="kanban-cards" id="closedCards" data-status="Closed">
                     <!-- Cards will be inserted here -->
                 </div>
             </div>
@@ -742,9 +803,9 @@
             <!-- Content will be loaded dynamically -->
         </div>
         <div class="detail-actions">
-            <button class="action-btn btn-update" onclick="showUpdateModal()">💬 Add Update</button>
-            <button class="action-btn btn-time" onclick="showTimeModal()">⏱️ Track Time</button>
-            <button class="action-btn btn-reassign" onclick="showReassignModal()">🔄 Reassign</button>
+            <button class="action-btn btn-update" onclick="showUpdateModal()">Add Update</button>
+            <button class="action-btn btn-time" onclick="showTimeModal()">Track Time</button>
+            <button class="action-btn btn-reassign" onclick="showReassignModal()">Reassign</button>
         </div>
     </div>
 
@@ -752,11 +813,11 @@
     <div class="modal" id="forcedUpdateModal">
         <div class="modal-content">
             <div class="modal-header urgent">
-                <h3>🚨 ESCALATION UPDATE REQUIRED</h3>
+                <h3>! ESCALATION UPDATE REQUIRED</h3>
             </div>
             <div class="modal-body">
                 <div class="alert alert-danger">
-                    <strong>⚠️ URGENT:</strong> This ticket has been escalated due to SLA breach. You MUST provide an update before performing any other actions.
+                    <strong>URGENT:</strong> This ticket has been escalated due to SLA breach. You MUST provide an update before performing any other actions.
                 </div>
                 <div id="escalationReason" style="background: #fff3cd; padding: 12px; border-radius: 6px; margin-bottom: 20px; font-size: 14px;">
                     <!-- Escalation reason will be inserted here -->
@@ -784,14 +845,33 @@
     <div class="modal" id="updateModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>💬 Add Update</h3>
+                <h3>Update Ticket Status & Add Notes</h3>
                 <button class="close-detail" onclick="closeUpdateModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <form id="updateForm">
                     <div class="form-group">
-                        <label>Update / Comment</label>
-                        <textarea id="updateText" required placeholder="Describe what you've done or provide an update..."></textarea>
+                        <label>Change Status</label>
+                        <select id="updateStatus">
+                            <option value="">-- Keep Current Status --</option>
+                            <option value="Open">Open</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Waiting on User">Waiting on parts</option>
+                            <option value="Resolved">Resolved</option>
+                            <option value="Closed">Closed</option>
+                        </select>
+                        <div class="form-help">Select a new status or leave blank to keep current status</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Update / Comment *</label>
+                        <textarea id="updateText" required placeholder="Describe what you've done, current progress, or findings..." rows="5"></textarea>
+                        <div class="form-help">This update will be logged and timestamped in the ticket history</div>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="updateInternal" style="margin-right: 8px;">
+                            Internal Note (visible only to technicians and managers)
+                        </label>
                     </div>
                 </form>
             </div>
@@ -806,7 +886,7 @@
     <div class="modal" id="timeModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>⏱️ Track Time</h3>
+                <h3>Track Time</h3>
                 <button class="close-detail" onclick="closeTimeModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -833,7 +913,7 @@
     <div class="modal" id="reassignModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>🔄 Reassign Ticket</h3>
+                <h3>Reassign Ticket</h3>
                 <button class="close-detail" onclick="closeReassignModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -859,6 +939,60 @@
         </div>
     </div>
 
-    <script src="/static/js/technician.js"></script>
+    <!-- Create Ticket Modal -->
+    <div class="modal" id="createTicketModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📝 Create New Ticket</h3>
+                <button class="close-detail" onclick="closeCreateTicketModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="createTicketForm">
+                    <div class="form-group">
+                        <label>User Name *</label>
+                        <input type="text" id="createUserName" required placeholder="Enter user name">
+                    </div>
+                    <div class="form-group">
+                        <label>User Email *</label>
+                        <input type="email" id="createUserEmail" required placeholder="user@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>User Phone *</label>
+                        <input type="tel" id="createUserPhone" required placeholder="+27123456789">
+                    </div>
+                    <div class="form-group">
+                        <label>Problem Summary *</label>
+                        <input type="text" id="createProblemSummary" required placeholder="Brief description">
+                    </div>
+                    <div class="form-group">
+                        <label>Problem Description</label>
+                        <textarea id="createProblemDescription" placeholder="Detailed description of the issue" rows="4"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Priority *</label>
+                        <select id="createPriority" required>
+                            <option value="Normal">Normal</option>
+                            <option value="High">High</option>
+                            <option value="Urgent">Urgent</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Assign To</label>
+                        <select id="createAssignee">
+                            <option value="">Unassigned (will be assigned to you)</option>
+                            <!-- Will be populated dynamically -->
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-cancel" onclick="closeCreateTicketModal()">Cancel</button>
+                <button class="btn-submit" onclick="submitCreateTicket()">Create Ticket</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/technician.js?v=2.6"></script>
 </body>
 </html>
+

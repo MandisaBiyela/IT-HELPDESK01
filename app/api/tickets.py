@@ -3,9 +3,11 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 from typing import List, Optional
 from datetime import datetime
+from pydantic import BaseModel
 from app.database import get_db
 from app.models.user import User
 from app.models.ticket import Ticket, TicketUpdate, TicketStatus, TicketPriority
+from app.utils.timezone import get_sa_time
 from app.schemas.ticket import (
     TicketCreate,
     TicketUpdate as TicketUpdateSchema,
@@ -26,9 +28,9 @@ async def create_ticket(
     ticket_data: TicketCreate,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(["helpdesk_officer", "admin"]))
+    current_user: User = Depends(require_role(["helpdesk_officer", "technician", "admin"]))
 ):
-    """Create a new support ticket - Only Helpdesk Officers and Admins can create tickets"""
+    """Create a new support ticket - Helpdesk Officers, Technicians, and Admins can create tickets"""
     # Generate ticket number
     last_ticket = db.query(Ticket).order_by(Ticket.id.desc()).first()
     last_id = last_ticket.id if last_ticket else 0
@@ -105,6 +107,8 @@ def get_all_tickets(
     status: Optional[TicketStatus] = None,
     priority: Optional[TicketPriority] = None,
     assignee_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -118,6 +122,12 @@ def get_all_tickets(
         query = query.filter(Ticket.priority == priority)
     if assignee_id:
         query = query.filter(Ticket.assignee_id == assignee_id)
+    if start_date:
+        start_dt = datetime.fromisoformat(start_date)
+        query = query.filter(Ticket.created_at >= start_dt)
+    if end_date:
+        end_dt = datetime.fromisoformat(end_date)
+        query = query.filter(Ticket.created_at <= end_dt)
     
     tickets = query.order_by(Ticket.created_at.desc()).all()
     
@@ -125,15 +135,29 @@ def get_all_tickets(
     response = []
     for ticket in tickets:
         assignee_name = ticket.assignee.name if ticket.assignee else "Unassigned"
+        assignee_obj = None
+        if ticket.assignee:
+            assignee_obj = {
+                "id": ticket.assignee.id,
+                "name": ticket.assignee.name,
+                "email": ticket.assignee.email,
+                "role": ticket.assignee.role
+            }
+        
         response.append(TicketListResponse(
             id=ticket.id,
             ticket_number=ticket.ticket_number,
             user_name=ticket.user_name,
+            user_email=ticket.user_email,
+            user_phone=ticket.user_phone,
             problem_summary=ticket.problem_summary,
             priority=ticket.priority,
             status=ticket.status,
             assignee_name=assignee_name,
+            assignee=assignee_obj,
+            assignee_id=ticket.assignee_id,
             created_at=ticket.created_at,
+            resolved_at=ticket.resolved_at,
             sla_deadline=ticket.sla_deadline
         ))
     
@@ -259,7 +283,10 @@ async def update_ticket(
             old_assignee_id=old_assignee_id if changes_made and update_data.assignee_id else None,
             new_assignee_id=ticket.assignee_id if changes_made and update_data.assignee_id else None,
             old_priority=old_priority,
-            new_priority=ticket.priority.value if changes_made and update_data.priority else None
+            new_priority=ticket.priority.value if changes_made and update_data.priority else None,
+            is_internal=1 if update_data.is_internal else 0,
+            time_spent=update_data.time_spent,
+            reassign_reason=update_data.reassign_reason
         )
         db.add(update_log)
         
@@ -453,15 +480,20 @@ async def submit_forced_update(
     }
 
 
+class ReassignRequest(BaseModel):
+    new_assignee_id: int
+    reassign_reason: str
+
 @router.post("/{ticket_id}/reassign", status_code=status.HTTP_200_OK)
 async def reassign_ticket(
     ticket_id: int,
-    new_assignee_id: int,
-    reassign_reason: str,
+    reassign_data: ReassignRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
     """Reassign ticket to another technician - requires reason"""
+    new_assignee_id = reassign_data.new_assignee_id
+    reassign_reason = reassign_data.reassign_reason
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     
     if not ticket:
@@ -602,11 +634,15 @@ async def add_internal_note(
     }
 
 
+class TimeTrackingRequest(BaseModel):
+    update_text: str
+    time_spent: int  # Minutes
+
+
 @router.post("/{ticket_id}/time-tracking", status_code=status.HTTP_200_OK)
 async def add_time_tracking(
     ticket_id: int,
-    update_text: str,
-    time_spent: int,  # Minutes
+    time_data: TimeTrackingRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
@@ -619,7 +655,7 @@ async def add_time_tracking(
             detail="Ticket not found"
         )
     
-    if time_spent < 1:
+    if time_data.time_spent < 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Time spent must be at least 1 minute"
@@ -628,13 +664,13 @@ async def add_time_tracking(
     # Create update with time tracking
     ticket_update = TicketUpdate(
         ticket_id=ticket.id,
-        update_text=update_text,
+        update_text=time_data.update_text,
         updated_by_id=current_user.id,
-        time_spent=time_spent
+        time_spent=time_data.time_spent
     )
     db.add(ticket_update)
     
-    ticket.updated_at = datetime.utcnow()
+    ticket.updated_at = get_sa_time()
     
     db.commit()
     
@@ -642,6 +678,32 @@ async def add_time_tracking(
         "success": True,
         "message": "Update with time tracking added",
         "ticket_number": ticket.ticket_number,
-        "time_spent_minutes": time_spent,
-        "time_spent_hours": round(time_spent / 60, 2)
+        "time_spent_minutes": time_data.time_spent,
+        "time_spent_hours": round(time_data.time_spent / 60, 2)
     }
+
+
+@router.delete("/{ticket_number}", status_code=status.HTTP_200_OK)
+async def delete_ticket(
+    ticket_number: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(["admin", "helpdesk_officer"]))
+):
+    """Delete a ticket - Only Admins and Helpdesk Officers can delete tickets"""
+    ticket = db.query(Ticket).filter(Ticket.ticket_number == ticket_number).first()
+    
+    if not ticket:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Ticket {ticket_number} not found"
+        )
+    
+    # Delete the ticket (cascade will handle related records)
+    db.delete(ticket)
+    db.commit()
+    
+    return {
+        "success": True,
+        "message": f"Ticket {ticket_number} deleted successfully"
+    }
+

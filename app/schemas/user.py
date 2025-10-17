@@ -46,3 +46,16 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     email: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    """Schema for user profile updates"""
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[EmailStr] = None
+
+
+class PasswordChange(BaseModel):
+    """Schema for password changes"""
+    current_password: str
+    new_password: str

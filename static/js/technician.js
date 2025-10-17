@@ -52,11 +52,13 @@ function logout() {
     window.location.href = '/static/index.html';
 }
 
-// Load all tickets assigned to current user
+// Load ALL tickets from ALL users (real-time sync)
 async function loadTickets() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/tickets/`, {
+        
+        // Fetch ALL tickets (not filtered by assignee)
+        const response = await fetch(`${API_BASE}/tickets`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -64,14 +66,18 @@ async function loadTickets() {
         
         if (!response.ok) throw new Error('Failed to load tickets');
         
-        const data = await response.json();
-        allTickets = data.tickets || [];
+        // API returns array directly, not wrapped in object
+        allTickets = await response.json();
         
-        // Filter to only show tickets assigned to current user
-        const myTickets = allTickets.filter(t => t.assignee_id === currentUser.id);
+        renderKanbanBoard(allTickets);
+        updateStats(allTickets);
         
-        renderKanbanBoard(myTickets);
-        updateStats(myTickets);
+        // Update last refresh time
+        const now = new Date();
+        const timeElement = document.getElementById('lastUpdate');
+        if (timeElement) {
+            timeElement.textContent = `Last updated: ${now.toLocaleTimeString()}`;
+        }
         
     } catch (error) {
         console.error('Error loading tickets:', error);
@@ -85,7 +91,8 @@ function renderKanbanBoard(tickets) {
         'Open': document.getElementById('openCards'),
         'In Progress': document.getElementById('progressCards'),
         'Waiting on User': document.getElementById('waitingCards'),
-        'Resolved': document.getElementById('resolvedCards')
+        'Resolved': document.getElementById('resolvedCards'),
+        'Closed': document.getElementById('closedCards')
     };
     
     // Clear all columns
@@ -98,7 +105,8 @@ function renderKanbanBoard(tickets) {
         'Open': 0,
         'In Progress': 0,
         'Waiting on User': 0,
-        'Resolved': 0
+        'Resolved': 0,
+        'Closed': 0
     };
     
     // Sort by priority and created date
@@ -125,6 +133,7 @@ function renderKanbanBoard(tickets) {
     document.getElementById('progressCount').textContent = counts['In Progress'];
     document.getElementById('waitingCount').textContent = counts['Waiting on User'];
     document.getElementById('resolvedCount').textContent = counts['Resolved'];
+    document.getElementById('closedCount').textContent = counts['Closed'];
 }
 
 // Create individual kanban card
@@ -148,19 +157,24 @@ function createKanbanCard(ticket) {
         </div>
         <div class="card-title">${escapeHtml(ticket.title)}</div>
         <div class="card-meta">
-            <span class="meta-item">🕐 ${timeAgo}</span>
+            <span class="meta-item">${timeAgo}</span>
             ${slaInfo.badge}
-            ${ticket.escalated ? '<span class="escalated-badge">🚨 ESCALATED</span>' : ''}
+            ${ticket.escalated ? '<span class="escalated-badge">ESCALATED</span>' : ''}
         </div>
     `;
     
-    card.addEventListener('click', () => openTicketDetail(ticket.id));
+    card.addEventListener('click', () => openTicketDetail(ticket.ticket_number));
     
     return card;
 }
 
 // Get SLA information
 function getSLAInfo(ticket) {
+    // Don't show SLA badges for resolved or closed tickets
+    if (ticket.status === 'Resolved' || ticket.status === 'Closed') {
+        return { badge: '', remaining: null };
+    }
+    
     if (!ticket.sla_deadline) {
         return { badge: '', remaining: null };
     }
@@ -175,11 +189,11 @@ function getSLAInfo(ticket) {
     
     if (status === 'Breached' || diffMins <= 0) {
         const overdue = Math.abs(diffMins);
-        badge = `<span class="sla-badge sla-breached">🔴 ${overdue}m overdue</span>`;
+        badge = `<span class="sla-badge sla-breached">${overdue}m overdue</span>`;
     } else if (status === 'At Risk' || diffMins <= 2) {
-        badge = `<span class="sla-badge sla-at-risk">🟡 ${diffMins}m left</span>`;
+        badge = `<span class="sla-badge sla-at-risk">${diffMins}m left</span>`;
     } else {
-        badge = `<span class="sla-badge sla-on-track">🟢 ${diffMins}m left</span>`;
+        badge = `<span class="sla-badge sla-on-track">${diffMins}m left</span>`;
     }
     
     return { badge, remaining: diffMins };
@@ -195,7 +209,8 @@ function updateStats(tickets) {
     today.setHours(0, 0, 0, 0);
     const resolvedToday = tickets.filter(t => {
         if (t.status !== 'Resolved') return false;
-        const resolvedDate = new Date(t.updated_at);
+        // Use resolved_at if available, otherwise fall back to updated_at
+        const resolvedDate = new Date(t.resolved_at || t.updated_at);
         resolvedDate.setHours(0, 0, 0, 0);
         return resolvedDate.getTime() === today.getTime();
     }).length;
@@ -310,7 +325,7 @@ async function submitForcedUpdate() {
         modal.classList.remove('active');
         document.getElementById('forcedUpdateForm').reset();
         
-        showSuccess('✅ Escalation update submitted successfully!');
+        showSuccess('Escalation update submitted successfully!');
         
         // Reload tickets
         await loadTickets();
@@ -342,8 +357,8 @@ function renderTicketDetail(ticket) {
                     <span class="card-priority priority-${ticket.priority.toLowerCase()}">${ticket.priority}</span>
                 </span>
                 
-                <span class="info-label">Category:</span>
-                <span class="info-value">${ticket.category}</span>
+                <span class="info-label">Problem Summary:</span>
+                <span class="info-value">${ticket.problem_summary || 'N/A'}</span>
                 
                 <span class="info-label">SLA Status:</span>
                 <span class="info-value">${slaInfo.badge}</span>
@@ -352,20 +367,20 @@ function renderTicketDetail(ticket) {
                 <span class="info-value">${formatDateTime(ticket.created_at)}</span>
                 
                 <span class="info-label">Reported By:</span>
-                <span class="info-value">${ticket.reported_by_name}</span>
+                <span class="info-value">${ticket.user_name || 'N/A'}</span>
                 
                 <span class="info-label">Email:</span>
-                <span class="info-value">${ticket.reported_by_email}</span>
+                <span class="info-value">${ticket.user_email || 'N/A'}</span>
                 
                 <span class="info-label">Phone:</span>
-                <span class="info-value">${ticket.reported_by_phone || 'N/A'}</span>
+                <span class="info-value">${ticket.user_phone || 'N/A'}</span>
             </div>
         </div>
         
         <div class="detail-section">
             <h3>Description</h3>
             <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; line-height: 1.6;">
-                ${escapeHtml(ticket.description)}
+                ${escapeHtml(ticket.problem_description || 'No description provided')}
             </div>
         </div>
         
@@ -390,21 +405,60 @@ function renderTimeline(updates) {
         const isInternal = update.is_internal ? 'internal' : '';
         const internalLabel = update.is_internal ? '<span style="background: #ffc107; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600;">INTERNAL</span>' : '';
         
+        // Build status change info
+        let statusChange = '';
+        if (update.old_status && update.new_status) {
+            statusChange = `
+                <div class="timeline-status-change">
+                    <strong>Status changed:</strong> 
+                    <span class="status-old">${update.old_status}</span> 
+                    → 
+                    <span class="status-new">${update.new_status}</span>
+                </div>
+            `;
+        }
+        
+        // Build priority change info
+        let priorityChange = '';
+        if (update.old_priority && update.new_priority) {
+            priorityChange = `
+                <div class="timeline-priority-change">
+                    <strong>Priority changed:</strong> 
+                    <span class="priority-badge priority-${update.old_priority.toLowerCase()}">${update.old_priority}</span> 
+                    → 
+                    <span class="priority-badge priority-${update.new_priority.toLowerCase()}">${update.new_priority}</span>
+                </div>
+            `;
+        }
+        
+        // Build assignee change info
+        let assigneeChange = '';
+        if (update.old_assignee_id && update.new_assignee_id) {
+            assigneeChange = `
+                <div class="timeline-assignee-change">
+                    <strong>Reassigned to:</strong> ${update.new_assignee_name || 'another technician'}
+                </div>
+            `;
+        }
+        
         let metaInfo = '';
         if (update.time_spent) {
             const hours = (update.time_spent / 60).toFixed(1);
-            metaInfo += `<span>⏱️ Time: ${update.time_spent}min (${hours}h)</span>`;
+            metaInfo += `<span>⏱ Time: ${update.time_spent}min (${hours}h)</span>`;
         }
         if (update.reassign_reason) {
-            metaInfo += `<span>🔄 Reassigned: ${escapeHtml(update.reassign_reason)}</span>`;
+            metaInfo += `<span>📝 ${escapeHtml(update.reassign_reason)}</span>`;
         }
         
         return `
             <div class="timeline-item ${isInternal}">
                 <div class="timeline-header">
-                    <span class="timeline-user">${update.user_name} ${internalLabel}</span>
-                    <span class="timeline-time">${getTimeAgo(update.created_at)}</span>
+                    <span class="timeline-user">👤 ${update.updated_by_name || update.user_name} ${internalLabel}</span>
+                    <span class="timeline-time">🕐 ${formatDateTime(update.created_at)}</span>
                 </div>
+                ${statusChange}
+                ${priorityChange}
+                ${assigneeChange}
                 <div class="timeline-text">${escapeHtml(update.update_text)}</div>
                 ${metaInfo ? `<div class="timeline-meta">${metaInfo}</div>` : ''}
             </div>
@@ -421,12 +475,23 @@ function closeDetailPanel() {
 // Show update modal
 function showUpdateModal() {
     if (!currentTicket) return;
+    
+    // Reset form
+    document.getElementById('updateForm').reset();
+    document.getElementById('updateStatus').value = '';
+    document.getElementById('updateText').value = '';
+    document.getElementById('updateInternal').checked = false;
+    
+    // Show modal
     document.getElementById('updateModal').classList.add('active');
 }
 
 function closeUpdateModal() {
     document.getElementById('updateModal').classList.remove('active');
     document.getElementById('updateForm').reset();
+    document.getElementById('updateStatus').value = '';
+    document.getElementById('updateText').value = '';
+    document.getElementById('updateInternal').checked = false;
 }
 
 // Submit regular update
@@ -434,23 +499,36 @@ async function submitUpdate() {
     if (!currentTicket) return;
     
     const updateText = document.getElementById('updateText').value.trim();
+    const newStatus = document.getElementById('updateStatus').value;
+    const isInternal = document.getElementById('updateInternal').checked;
     
     if (!updateText) {
-        showError('Please enter an update');
+        showError('Please enter an update description');
         return;
     }
     
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/tickets/${currentTicket.id}`, {
+        
+        // Prepare update data
+        const updateData = {
+            update_text: updateText,
+            is_internal: isInternal
+        };
+        
+        // Add status change if selected
+        if (newStatus) {
+            updateData.status = newStatus;
+        }
+        
+        // Send PATCH request to update ticket
+        const response = await fetch(`${API_BASE}/tickets/${currentTicket.ticket_number}`, {
             method: 'PATCH',
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                update_text: updateText
-            })
+            body: JSON.stringify(updateData)
         });
         
         if (!response.ok) {
@@ -459,14 +537,15 @@ async function submitUpdate() {
         }
         
         closeUpdateModal();
-        showSuccess('✅ Update posted successfully!');
+        showSuccess('Update posted successfully!' + (newStatus ? ` Status changed to ${newStatus}` : ''));
         
-        // Reload ticket detail
-        await openTicketDetail(currentTicket.id);
+        // Reload tickets and ticket detail
+        await loadTickets();
+        await openTicketDetail(currentTicket.ticket_number);
         
     } catch (error) {
         console.error('Error posting update:', error);
-        showError(error.message);
+        showError(error.message || error.toString() || 'Failed to post update');
     }
 }
 
@@ -513,7 +592,7 @@ async function submitTimeTracking() {
         }
         
         closeTimeModal();
-        showSuccess('✅ Time tracked successfully!');
+        showSuccess('Time tracked successfully!');
         
         // Reload ticket detail
         await openTicketDetail(currentTicket.id);
@@ -528,23 +607,29 @@ async function submitTimeTracking() {
 async function loadTechnicians() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/users/`, {
+        const response = await fetch(`${API_BASE}/auth/users`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
         
-        if (!response.ok) return;
+        if (!response.ok) {
+            console.error('Failed to load technicians:', response.status);
+            return;
+        }
         
         const users = await response.json();
         technicians = users.filter(u => u.role === 'technician' && u.is_active);
+        
+        console.log(`Loaded ${technicians.length} technicians for reassignment`);
         
         // Populate reassign dropdown
         const select = document.getElementById('reassignTechnician');
         if (select) {
             select.innerHTML = '<option value="">Select technician...</option>';
             technicians.forEach(tech => {
-                select.innerHTML += `<option value="${tech.id}">${tech.full_name} (${tech.email})</option>`;
+                const displayName = tech.name || tech.full_name || tech.email;
+                select.innerHTML += `<option value="${tech.id}">${displayName}</option>`;
             });
         }
         
@@ -556,7 +641,28 @@ async function loadTechnicians() {
 // Show reassign modal
 function showReassignModal() {
     if (!currentTicket) return;
+    
+    // Populate technician dropdown
+    const select = document.getElementById('reassignTechnician');
+    if (select && technicians.length > 0) {
+        select.innerHTML = '<option value="">Select technician...</option>';
+        technicians.forEach(tech => {
+            const displayName = tech.name || tech.full_name || tech.email;
+            const currentUserId = localStorage.getItem('user_id');
+            const label = tech.id == currentUserId ? `${displayName} (Me)` : displayName;
+            select.innerHTML += `<option value="${tech.id}">${label}</option>`;
+        });
+    }
+    
     document.getElementById('reassignModal').classList.add('active');
+    
+    // Attach character counter event listener
+    const reasonTextarea = document.getElementById('reassignReason');
+    if (reasonTextarea) {
+        reasonTextarea.addEventListener('input', updateReasonCounter);
+        // Initialize counter
+        updateReasonCounter();
+    }
 }
 
 function closeReassignModal() {
@@ -617,7 +723,7 @@ async function submitReassign() {
         
         closeReassignModal();
         closeDetailPanel();
-        showSuccess('✅ Ticket reassigned successfully!');
+        showSuccess('Ticket reassigned successfully!');
         
         // Reload tickets
         await loadTickets();
@@ -709,7 +815,7 @@ async function updateTicketStatus(ticketId, newStatus) {
             throw new Error(error.detail?.message || error.detail || 'Failed to update status');
         }
         
-        showSuccess(`✅ Ticket moved to ${newStatus}`);
+        showSuccess(`Ticket moved to ${newStatus}`);
         await loadTickets();
         
     } catch (error) {
@@ -758,4 +864,80 @@ function showSuccess(message) {
 
 function showError(message) {
     alert('❌ ' + message);
+}
+
+// ============ CREATE TICKET FUNCTIONS ============
+
+function openCreateTicketModal() {
+    document.getElementById('createTicketModal').style.display = 'flex';
+    populateCreateAssigneeDropdown();
+}
+
+function closeCreateTicketModal() {
+    document.getElementById('createTicketModal').style.display = 'none';
+    document.getElementById('createTicketForm').reset();
+}
+
+function populateCreateAssigneeDropdown() {
+    const select = document.getElementById('createAssignee');
+    
+    // Clear existing options except first one
+    while (select.options.length > 1) {
+        select.remove(1);
+    }
+    
+    // Add current user as default
+    const currentUserId = localStorage.getItem('user_id');
+    const currentUserName = localStorage.getItem('user_name');
+    
+    technicians.forEach(tech => {
+        const option = document.createElement('option');
+        option.value = tech.id;
+        option.textContent = tech.name + (tech.id == currentUserId ? ' (Me)' : '');
+        select.appendChild(option);
+    });
+    
+    // Set current user as default
+    select.value = currentUserId;
+}
+
+async function submitCreateTicket() {
+    const token = localStorage.getItem('token');
+    const currentUserId = parseInt(localStorage.getItem('user_id'));
+    
+    const assigneeId = document.getElementById('createAssignee').value || currentUserId;
+    
+    const ticketData = {
+        user_name: document.getElementById('createUserName').value,
+        user_email: document.getElementById('createUserEmail').value,
+        user_phone: document.getElementById('createUserPhone').value,
+        problem_summary: document.getElementById('createProblemSummary').value,
+        problem_description: document.getElementById('createProblemDescription').value || '',
+        priority: document.getElementById('createPriority').value,
+        assignee_id: parseInt(assigneeId)
+    };
+    
+    try {
+        const response = await fetch(`${API_BASE}/tickets`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(ticketData)
+        });
+        
+        if (response.ok) {
+            const newTicket = await response.json();
+            showSuccess(`Ticket ${newTicket.ticket_number} created successfully!`);
+            closeCreateTicketModal();
+            loadTickets();
+        } else {
+            const error = await response.json();
+            showError(error.detail || 'Failed to create ticket');
+        }
+    } catch (error) {
+        console.error('Error creating ticket:', error);
+        showError('Error creating ticket');
+    }
 }

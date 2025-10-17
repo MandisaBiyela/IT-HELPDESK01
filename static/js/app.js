@@ -1,5 +1,5 @@
 // API Base URL
-const API_BASE = '';
+const API_BASE = 'http://localhost:8000';
 
 // State
 let token = localStorage.getItem('token');
@@ -7,15 +7,22 @@ let currentUser = null;
 let allUsers = [];
 let tickets = [];
 
-// DOM Elements
-const loginPage = document.getElementById('loginPage');
-const dashboardPage = document.getElementById('dashboardPage');
-const loginForm = document.getElementById('loginForm');
-const logoutBtn = document.getElementById('logoutBtn');
-const userName = document.getElementById('userName');
+// DOM Elements - will be initialized after DOM loads
+let loginPage;
+let dashboardPage;
+let loginForm;
+let logoutBtn;
+let userName;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize DOM elements
+    loginPage = document.getElementById('loginPage');
+    dashboardPage = document.getElementById('dashboardPage');
+    loginForm = document.getElementById('loginForm');
+    logoutBtn = document.getElementById('logoutBtn');
+    userName = document.getElementById('userName');
+    
     if (token) {
         loadDashboard();
     } else {
@@ -27,33 +34,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Event Listeners
 function setupEventListeners() {
-    // Login
-    loginForm.addEventListener('submit', handleLogin);
-    logoutBtn.addEventListener('click', handleLogout);
+    // Login - check if elements exist
+    if (loginForm) {
+        loginForm.addEventListener('submit', handleLogin);
+    }
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleLogout);
+    }
     
-    // Navigation
-    document.querySelectorAll('.nav-link').forEach(link => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            const page = e.target.dataset.page;
-            switchSection(page);
+    // Navigation (simplified for admin - reports only)
+    const navLinks = document.querySelectorAll('.nav-link');
+    if (navLinks.length > 0) {
+        navLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = e.target.dataset.page;
+                switchSection(page);
+            });
         });
-    });
+    }
     
-    // Create Ticket
-    document.getElementById('createTicketForm').addEventListener('submit', handleCreateTicket);
+    // Reports - only elements that exist for admin
+    const loadStatsBtn = document.getElementById('loadStats');
+    const exportCSVBtn = document.getElementById('exportCSV');
     
-    // Filters
-    document.getElementById('filterStatus').addEventListener('change', loadTickets);
-    document.getElementById('filterPriority').addEventListener('change', loadTickets);
-    document.getElementById('refreshTickets').addEventListener('click', loadTickets);
+    if (loadStatsBtn) {
+        loadStatsBtn.addEventListener('click', loadStatistics);
+    }
+    if (exportCSVBtn) {
+        exportCSVBtn.addEventListener('click', exportToCSV);
+    }
     
-    // Reports
-    document.getElementById('loadStats').addEventListener('click', loadStatistics);
-    document.getElementById('exportCSV').addEventListener('click', exportToCSV);
-    
-    // Modal
-    document.querySelector('.close').addEventListener('click', closeModal);
+    // Modal - only if it exists
+    const modalClose = document.querySelector('.close');
+    if (modalClose) {
+        modalClose.addEventListener('click', closeModal);
+    }
     window.addEventListener('click', (e) => {
         if (e.target.id === 'ticketModal') {
             closeModal();
@@ -61,18 +77,107 @@ function setupEventListeners() {
     });
 }
 
+// Page Navigation Functions
+function showLoginPage() {
+    document.getElementById('loginPage').style.display = 'block';
+    document.getElementById('signupPage').style.display = 'none';
+    document.getElementById('signupError').textContent = '';
+    document.getElementById('signupForm').reset();
+}
+
+function showSignupPage() {
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('signupPage').style.display = 'block';
+    document.getElementById('loginError').textContent = '';
+    document.getElementById('loginForm').reset();
+}
+
+// Signup Handler
+document.addEventListener('DOMContentLoaded', () => {
+    const signupForm = document.getElementById('signupForm');
+    if (signupForm) {
+        signupForm.addEventListener('submit', handleSignup);
+    }
+});
+
+async function handleSignup(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('signupName').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const phone = document.getElementById('signupPhone').value.trim();
+    const role = document.getElementById('signupRole').value;
+    const password = document.getElementById('signupPassword').value;
+    const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
+    
+    const errorEl = document.getElementById('signupError');
+    
+    // Validation
+    if (!name || !email || !phone || !role || !password || !passwordConfirm) {
+        errorEl.textContent = 'All fields are required';
+        return;
+    }
+    
+    if (password !== passwordConfirm) {
+        errorEl.textContent = 'Passwords do not match';
+        return;
+    }
+    
+    if (password.length < 6) {
+        errorEl.textContent = 'Password must be at least 6 characters';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                email: email,
+                phone: phone,
+                password: password,
+                role: role
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            alert('Account created successfully! Please login.');
+            showLoginPage();
+        } else {
+            const error = await response.json();
+            errorEl.textContent = error.detail || 'Failed to create account';
+        }
+    } catch (error) {
+        errorEl.textContent = 'Error: ' + error.message;
+    }
+}
+
 // Authentication
 async function handleLogin(e) {
     e.preventDefault();
+    console.log('Login form submitted'); // Debug log
+    
     const formData = new FormData(loginForm);
     const loginError = document.getElementById('loginError');
-    loginError.textContent = '';
+    
+    if (loginError) {
+        loginError.textContent = '';
+    }
+    
+    console.log('Form data:', {
+        username: formData.get('username'),
+        password: formData.get('password') ? '***' : 'empty'
+    }); // Debug log
     
     try {
         const response = await fetch(`${API_BASE}/api/auth/login`, {
             method: 'POST',
             body: formData
         });
+        
+        console.log('Login response status:', response.status); // Debug log
         
         if (!response.ok) {
             const error = await response.json();
@@ -83,9 +188,13 @@ async function handleLogin(e) {
         token = data.access_token;
         localStorage.setItem('token', token);
         
+        console.log('Login successful, loading dashboard...'); // Debug log
         await loadDashboard();
     } catch (error) {
-        loginError.textContent = error.message;
+        console.error('Login error:', error); // Debug log
+        if (loginError) {
+            loginError.textContent = error.message;
+        }
     }
 }
 
@@ -102,23 +211,42 @@ function showLogin() {
 
 async function loadDashboard() {
     try {
-        // Get current user
+        // Get current user info
         currentUser = await apiGet('/api/auth/me');
-        userName.textContent = currentUser.name;
         
-        // Load users for assignee dropdown
-        allUsers = await apiGet('/api/auth/users');
-        populateAssigneeDropdown();
+        // Store user info in localStorage for role-specific pages
+        localStorage.setItem('user_id', currentUser.id);
+        localStorage.setItem('user_name', currentUser.name);
+        localStorage.setItem('user_role', currentUser.role);
         
-        // Show/hide menu items based on role
-        updateMenuForRole();
+        console.log('User logged in:', currentUser.name, 'Role:', currentUser.role);
         
-        // Show dashboard
-        loginPage.style.display = 'none';
-        dashboardPage.style.display = 'block';
-        
-        // Load tickets
-        await loadTickets();
+        // Redirect to role-specific dashboard
+        switch(currentUser.role) {
+            case 'technician':
+                console.log('Redirecting to technician dashboard...');
+                window.location.href = '/static/technician.html';
+                break;
+            case 'helpdesk_officer':
+                console.log('Redirecting to helpdesk officer dashboard...');
+                window.location.href = '/static/helpdesk-officer.html';
+                break;
+            case 'ict_manager':
+                console.log('Redirecting to ICT Manager dashboard...');
+                window.location.href = '/static/ict-manager.html';
+                break;
+            case 'ict_gm':
+                console.log('Redirecting to ICT GM dashboard...');
+                window.location.href = '/static/ict-gm.html';
+                break;
+            case 'admin':
+                // Admin role disabled
+                alert('Admin access has been disabled. Please contact system administrator.');
+                handleLogout();
+                break;
+            default:
+                throw new Error('Unknown user role: ' + currentUser.role);
+        }
     } catch (error) {
         console.error('Failed to load dashboard:', error);
         handleLogout();
@@ -132,35 +260,14 @@ function updateMenuForRole() {
         userRoleBadge.textContent = currentUser.role.replace('_', ' ');
     }
     
-    // Update welcome name
+    // Update welcome name (if exists - removed from admin dashboard)
     const welcomeName = document.getElementById('welcomeName');
     if (welcomeName) {
         welcomeName.textContent = currentUser.name;
     }
     
-    // Only helpdesk officers and admins can create tickets
-    const createNavLink = document.querySelector('[data-page="create"]');
-    if (currentUser.role === 'helpdesk_officer' || currentUser.role === 'admin') {
-        if (createNavLink) createNavLink.style.display = 'inline-block';
-    } else {
-        if (createNavLink) createNavLink.style.display = 'none';
-    }
-    
-    // Only admins can view reports
-    const reportsNavLink = document.querySelector('[data-page="reports"]');
-    if (currentUser.role === 'admin') {
-        if (reportsNavLink) reportsNavLink.style.display = 'inline-block';
-    } else {
-        if (reportsNavLink) reportsNavLink.style.display = 'none';
-    }
-    
-    // Admins and technicians can manage users
-    const usersNavLink = document.querySelector('[data-page="users"]');
-    if (currentUser.role === 'admin' || currentUser.role === 'technician') {
-        if (usersNavLink) usersNavLink.style.display = 'inline-block';
-    } else {
-        if (usersNavLink) usersNavLink.style.display = 'none';
-    }
+    // Admin dashboard is now reports-only, all nav links already set correctly in HTML
+    // No need to show/hide since admin only has Reports link
     
     // Load role-specific dashboard
     loadRoleDashboard();
@@ -197,9 +304,17 @@ function switchSection(sectionName) {
 
 // Tickets
 async function loadTickets() {
+    // Admin doesn't have ticket view anymore, skip if elements don't exist
+    const filterStatus = document.getElementById('filterStatus');
+    const filterPriority = document.getElementById('filterPriority');
+    
+    if (!filterStatus || !filterPriority) {
+        return; // No ticket filters on this page
+    }
+    
     try {
-        const status = document.getElementById('filterStatus').value;
-        const priority = document.getElementById('filterPriority').value;
+        const status = filterStatus.value;
+        const priority = filterPriority.value;
         
         let url = '/api/tickets?';
         if (status) url += `status=${encodeURIComponent(status)}&`;
@@ -214,6 +329,10 @@ async function loadTickets() {
 
 function displayTickets(ticketList) {
     const container = document.getElementById('ticketsList');
+    
+    if (!container) {
+        return; // No ticket list container on this page
+    }
     
     if (ticketList.length === 0) {
         container.innerHTML = '<p>No tickets found</p>';
@@ -255,10 +374,10 @@ function displayTicketDetail(ticket) {
     const detail = document.getElementById('ticketDetail');
     
     const requiresUpdate = ticket.requires_update ? 
-        '<div class="alert alert-danger"><strong>⚠️ COMPULSORY UPDATE REQUIRED</strong><br>This ticket requires an update before any other action can be taken.</div>' : '';
+        '<div class="alert alert-danger"><strong>COMPULSORY UPDATE REQUIRED</strong><br>This ticket requires an update before any other action can be taken.</div>' : '';
     
     const escalated = ticket.escalated ? 
-        '<div class="alert alert-warning"><strong>🚨 ESCALATED</strong><br>This ticket has been escalated due to SLA breach.</div>' : '';
+        '<div class="alert alert-warning"><strong>ESCALATED</strong><br>This ticket has been escalated due to SLA breach.</div>' : '';
     
     detail.innerHTML = `
         <div class="ticket-detail-header">
@@ -397,12 +516,14 @@ async function handleUpdateTicket(e, ticketNumber) {
     }
 }
 
-// Create Ticket
+// Create Ticket (Not used by admin - kept for compatibility)
 function populateAssigneeDropdown() {
     const select = document.getElementById('assignee');
-    select.innerHTML = allUsers.map(user => 
-        `<option value="${user.id}">${user.name} (${user.role})</option>`
-    ).join('');
+    if (select) {
+        select.innerHTML = allUsers.map(user => 
+            `<option value="${user.id}">${user.name} (${user.role})</option>`
+        ).join('');
+    }
 }
 
 async function handleCreateTicket(e) {
@@ -410,6 +531,12 @@ async function handleCreateTicket(e) {
     
     const errorDiv = document.getElementById('createError');
     const successDiv = document.getElementById('createSuccess');
+    
+    // Safety check - these elements don't exist on admin dashboard
+    if (!errorDiv || !successDiv) {
+        return;
+    }
+    
     errorDiv.textContent = '';
     successDiv.textContent = '';
     
@@ -552,10 +679,15 @@ function displayStatistics(stats) {
 
 async function exportToCSV() {
     try {
-        const status = document.getElementById('filterStatus').value;
-        const priority = document.getElementById('filterPriority').value;
-        const startDate = document.getElementById('reportStartDate').value;
-        const endDate = document.getElementById('reportEndDate').value;
+        const statusEl = document.getElementById('filterStatus');
+        const priorityEl = document.getElementById('filterPriority');
+        const startDateEl = document.getElementById('reportStartDate');
+        const endDateEl = document.getElementById('reportEndDate');
+        
+        const status = statusEl ? statusEl.value : '';
+        const priority = priorityEl ? priorityEl.value : '';
+        const startDate = startDateEl ? startDateEl.value : '';
+        const endDate = endDateEl ? endDateEl.value : '';
         
         let url = '/api/reports/tickets/export?';
         if (status) url += `status=${encodeURIComponent(status)}&`;

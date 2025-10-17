@@ -2,43 +2,150 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ndabase IT Helpdesk</title>
-    <link rel="stylesheet" href="/static/css/style.css">
+        <link rel="stylesheet" href="/static/css/style.css?v=8.5">
 </head>
 <body>
     <div id="app">
         <!-- Login Page -->
         <div id="loginPage" class="page">
             <div class="login-container">
-                <div class="logo">
-                    <div class="ndabase-logo">
-                        <div class="logo-circle">
-                            <div class="logo-segment segment-1"></div>
-                            <div class="logo-segment segment-2"></div>
-                            <div class="logo-segment segment-3"></div>
-                            <div class="logo-segment segment-4"></div>
-                        </div>
-                        <div class="logo-text">
-                            <span class="logo-ndabase">ndabase</span>
-                            <span class="logo-tagline">printingsolutions</span>
-                        </div>
+                <div class="login-wrapper">
+                    <!-- Ndabase Logo -->
+                    <div class="login-header">
+                        <img src="/static/img/image.png" alt="Ndabase Printing Solutions" class="ndabase-logo-img">
                     </div>
-                    <h1>IT Helpdesk System</h1>
+
+                    <!-- Login Form Box -->
+                    <div class="login-form-box">
+                        <h2>Login</h2>
+                        <p class="login-subtitle">Login using local account.</p>
+                    
+                    <form id="loginForm">
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <div class="input-with-icon">
+                                <input type="email" id="email" name="username" required>
+                                <span class="input-icon">@</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <div class="input-with-icon password-field">
+                                <input type="password" id="password" name="password" required>
+                                <span class="password-toggle" onclick="togglePassword('password')">👁️</span>
+                            </div>
+                        </div>
+                        
+                        <div class="form-options">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="rememberMe">
+                                <span>Remember My Login</span>
+                            </label>
+                        </div>
+
+                        <div class="button-group">
+                            <button type="submit" class="btn-signin">
+                                <span class="btn-icon"></span>►</span> Sign in
+                            </button>
+                            <button type="button" class="btn-cancel" onclick="document.getElementById('loginForm').reset();">
+                                <span class="btn-icon">⊗</span> Cancel
+                            </button>
+                        </div>
+                        
+                        <div id="loginError" class="error"></div>
+                        
+                        <div class="login-footer-links">
+                            <a href="#" onclick="alert('Contact admin to reset password'); return false;">Forgot your password?</a>
+                            <span class="separator">|</span>
+                            <a href="#" onclick="showSignupPage(); return false;">Create account instead</a>
+                        </div>
+                    </form>
                 </div>
-                <form id="loginForm">
-                    <h2>Login</h2>
-                    <div class="form-group">
-                        <label for="email">Email</label>
-                        <input type="email" id="email" name="username" required>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sign Up Page -->
+        <div id="signupPage" class="page" style="display: none;">
+            <div class="login-container">
+                <div class="login-wrapper">
+                    <div class="login-header">
+                        <img src="/static/img/image.png" alt="Ndabase Printing Solutions" class="ndabase-logo-img">
                     </div>
-                    <div class="form-group">
-                        <label for="password">Password</label>
-                        <input type="password" id="password" name="password" required>
+
+                    <div class="login-form-box">
+                        <h2>Create Account</h2>
+                        <p class="login-subtitle">Sign up for a new account.</p>
+                        
+                        <form id="signupForm">
+                            <div class="form-group">
+                                <label for="signupName">Full Name</label>
+                                <div class="input-with-icon">
+                                    <input type="text" id="signupName" required placeholder="Enter your full name">
+                                    <span class="input-icon"></span>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="signupEmail">Email</label>
+                                <div class="input-with-icon">
+                                    <input type="email" id="signupEmail" required placeholder="helpdesk1@ndabase.com">
+                                    <span class="input-icon">@</span>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="signupPhone">Phone Number</label>
+                                <div class="input-with-icon">
+                                    <input type="tel" id="signupPhone" required placeholder="Enter your phone number">
+                                    <span class="input-icon"></span>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="signupRole">Role</label>
+                                <div class="select-wrapper">
+                                    <select id="signupRole" required>
+                                        <option value="">Select your role</option>
+                                        <option value="ict_gm">ICT GM (Executive)</option>
+                                        <option value="ict_manager">ICT Manager</option>
+                                        <option value="helpdesk_officer">Helpdesk Officer</option>
+                                        <option value="technician">Technician</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="signupPassword">Password</label>
+                                <div class="input-with-icon password-field">
+                                    <input type="password" id="signupPassword" required placeholder="●●●●●●">
+                                    <span class="password-toggle" onclick="togglePassword('signupPassword')">👁️</span>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="signupPasswordConfirm">Confirm Password</label>
+                                <div class="input-with-icon password-field">
+                                    <input type="password" id="signupPasswordConfirm" required placeholder="●●●●●●">
+                                    <span class="password-toggle" onclick="togglePassword('signupPasswordConfirm')">👁️</span>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn-create-account">
+                                <span class="btn-icon">+</span> Create Account
+                            </button>
+                            
+                            <div id="signupError" class="error"></div>
+                            
+                            <div class="login-footer-links">
+                                <a href="#" onclick="showLoginPage(); return false;">Already have an account? Login here</a>
+                            </div>
+                        </form>
                     </div>
-                    <button type="submit" class="btn btn-primary">Login</button>
-                    <div id="loginError" class="error"></div>
-                </form>
+                </div>
             </div>
         </div>
 
@@ -47,15 +154,11 @@
             <!-- Navigation Bar -->
             <nav class="navbar">
                 <div class="nav-brand">
-                    <span class="nav-logo-icon">🎨</span>
+                    <span class="nav-logo-icon"></span>
                     <span class="nav-logo-text">ndabase</span> IT Helpdesk
                 </div>
                 <div class="nav-menu">
-                    <a href="#" class="nav-link active" data-page="dashboard">Dashboard</a>
-                    <a href="#" class="nav-link" data-page="tickets">My Tickets</a>
-                    <a href="#" class="nav-link" data-page="create" style="display: none;">Create Ticket</a>
-                    <a href="#" class="nav-link" data-page="users" style="display: none;">Manage Users</a>
-                    <a href="#" class="nav-link" data-page="reports" style="display: none;">Reports</a>
+                    <a href="#" class="nav-link active" data-page="reports">Reports</a>
                 </div>
                 <div class="nav-user">
                     <span id="userName"></span> 
@@ -66,147 +169,8 @@
 
             <!-- Content Area -->
             <div class="container">
-                <!-- Dashboard Overview -->
-                <div id="dashboardSection" class="section active">
-                    <h2>Welcome, <span id="welcomeName"></span>!</h2>
-                    <div id="dashboardContent"></div>
-                </div>
-
-                <!-- My Tickets -->
-                <div id="ticketsSection" class="section">
-                    <h2>Tickets</h2>
-                    <div class="filters">
-                        <select id="filterStatus">
-                            <option value="">All Status</option>
-                            <option value="Open">Open</option>
-                            <option value="In Progress">In Progress</option>
-                            <option value="Resolved">Resolved</option>
-                            <option value="Closed">Closed</option>
-                        </select>
-                        <select id="filterPriority">
-                            <option value="">All Priorities</option>
-                            <option value="Normal">Normal</option>
-                            <option value="High">High</option>
-                            <option value="Urgent">Urgent</option>
-                        </select>
-                        <button id="refreshTickets" class="btn">Refresh</button>
-                    </div>
-                    <div id="ticketsList" class="tickets-list"></div>
-                </div>
-
-                <!-- Create Ticket (Helpdesk Officer Only) -->
-                <div id="createSection" class="section">
-                    <h2>Create New Ticket</h2>
-                    <form id="createTicketForm">
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="ticketUserName">User Name *</label>
-                                <input type="text" id="ticketUserName" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="userEmail">User Email *</label>
-                                <input type="email" id="userEmail" required>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="userPhone">User Phone *</label>
-                                <input type="tel" id="userPhone" required>
-                            </div>
-                            <div class="form-group">
-                                <label for="priority">Priority *</label>
-                                <select id="priority" required>
-                                    <option value="Normal">Normal</option>
-                                    <option value="High">High</option>
-                                    <option value="Urgent">Urgent</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="assignee">Assign To *</label>
-                            <select id="assignee" required></select>
-                        </div>
-                        <div class="form-group">
-                            <label for="problemSummary">Problem Summary *</label>
-                            <input type="text" id="problemSummary" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="problemDescription">Detailed Description</label>
-                            <textarea id="problemDescription" rows="4"></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Create Ticket</button>
-                        <div id="createError" class="error"></div>
-                        <div id="createSuccess" class="success"></div>
-                    </form>
-                </div>
-
-                <!-- Manage Users (Admin and Technicians) -->
-                <div id="usersSection" class="section">
-                    <h2>Manage Users</h2>
-                    <button id="showCreateUserBtn" class="btn btn-primary" style="margin-bottom: 20px;">+ Create New User</button>
-                    
-                    <!-- Create User Form (Initially Hidden) -->
-                    <div id="createUserForm" class="card" style="display: none; margin-bottom: 20px;">
-                        <h3>Create New User</h3>
-                        <form id="userForm">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="newUserName">Full Name *</label>
-                                    <input type="text" id="newUserName" required>
-                                </div>
-                                <div class="form-group">
-                                    <label for="newUserEmail">Email *</label>
-                                    <input type="email" id="newUserEmail" required>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="newUserPhone">Phone</label>
-                                    <input type="tel" id="newUserPhone">
-                                </div>
-                                <div class="form-group">
-                                    <label for="newUserPassword">Password *</label>
-                                    <input type="password" id="newUserPassword" required>
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="newUserRole">Role *</label>
-                                    <select id="newUserRole" required>
-                                        <option value="technician">Technician</option>
-                                        <option value="helpdesk_officer">Helpdesk Officer</option>
-                                        <option value="admin">Admin</option>
-                                    </select>
-                                </div>
-                                <div class="form-group" id="technicianTypeGroup">
-                                    <label for="newUserTechType">Technician Specialization</label>
-                                    <select id="newUserTechType">
-                                        <option value="">Select Type (Optional)</option>
-                                        <option value="IT Support Technician">IT Support Technician</option>
-                                        <option value="Network Technician">Network Technician</option>
-                                        <option value="Systems Technician">Systems Technician</option>
-                                        <option value="Field Technician">Field Technician</option>
-                                        <option value="Helpdesk Technician">Helpdesk Technician</option>
-                                        <option value="Electronics Technician">Electronics Technician</option>
-                                        <option value="General Technician">General Technician</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-actions">
-                                <button type="submit" class="btn btn-primary">Create User</button>
-                                <button type="button" id="cancelCreateUser" class="btn">Cancel</button>
-                            </div>
-                            <div id="userFormError" class="error"></div>
-                            <div id="userFormSuccess" class="success"></div>
-                        </form>
-                    </div>
-
-                    <!-- Users List -->
-                    <div id="usersList" class="users-list"></div>
-                </div>
-
                 <!-- Reports (Admin Only) -->
-                <div id="reportsSection" class="section">
+                <div id="reportsSection" class="section active">
                     <h2>Reports & Analytics</h2>
                     <div class="report-filters">
                         <div class="form-group">
@@ -234,6 +198,21 @@
         </div>
     </div>
 
-    <script src="/static/js/app.js"></script>
+    <script>
+        // Password visibility toggle function
+        function togglePassword(fieldId) {
+            const field = document.getElementById(fieldId);
+            const toggleBtn = field.nextElementSibling;
+            
+            if (field.type === 'password') {
+                field.type = 'text';
+                toggleBtn.textContent = '🙈'; // Eye closed
+            } else {
+                field.type = 'password';
+                toggleBtn.textContent = '👁️'; // Eye open
+            }
+        }
+    </script>
+    <script src="/static/js/app.js?v=7.0"></script>
 </body>
 </html>

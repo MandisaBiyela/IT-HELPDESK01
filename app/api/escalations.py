@@ -56,14 +56,19 @@ def get_escalations(
         
         result.append({
             "id": ticket.id,
+            "ticket_id": ticket.id,
             "ticket_number": ticket.ticket_number,
+            "title": ticket.problem_summary,  # Use problem_summary as title
             "problem_summary": ticket.problem_summary,
             "priority": ticket.priority.value,
             "status": ticket.status.value,
+            "category": "General Support",  # Default category since it's not in the model
             "sla_status": ticket.sla_status.value if ticket.sla_status else "Unknown",
             "requires_update": bool(ticket.requires_update),
             "assignee_name": ticket.assignee.name if ticket.assignee else "Unassigned",
             "assignee_id": ticket.assignee_id,
+            "reported_by_name": ticket.user_name,
+            "reported_by_email": ticket.user_email,
             "user_name": ticket.user_name,
             "user_email": ticket.user_email,
             "escalation_reason": latest_escalation.escalation_reason if latest_escalation else "SLA breach",
@@ -71,7 +76,8 @@ def get_escalations(
             "time_since_escalation": time_since,
             "previous_priority": latest_escalation.previous_priority if latest_escalation else None,
             "created_at": ticket.created_at,
-            "sla_deadline": ticket.sla_deadline
+            "sla_deadline": ticket.sla_deadline,
+            "gm_acknowledged": False  # Default to False since model doesn't track this
         })
     
     return {
@@ -137,67 +143,94 @@ def get_kpis(
 ):
     """Get KPIs for manager dashboard"""
     
-    # Parse dates
-    start_date = datetime.fromisoformat(date_from) if date_from else datetime.utcnow() - timedelta(days=30)
-    end_date = datetime.fromisoformat(date_to) if date_to else datetime.utcnow()
+    # Parse dates - if no dates provided, show ALL tickets (for ICT GM)
+    if date_from and date_to:
+        start_date = datetime.fromisoformat(date_from)
+        end_date = datetime.fromisoformat(date_to)
+        use_date_filter = True
+    else:
+        # No date filter - show all time statistics
+        start_date = None
+        end_date = None
+        use_date_filter = False
     
-    # Total tickets in period
-    total_tickets = db.query(Ticket).filter(
-        Ticket.created_at.between(start_date, end_date)
-    ).count()
+    # Total tickets (all time or in period)
+    if use_date_filter:
+        total_tickets = db.query(Ticket).filter(
+            Ticket.created_at.between(start_date, end_date)
+        ).count()
+    else:
+        total_tickets = db.query(Ticket).count()
     
     # Open tickets
     open_tickets = db.query(Ticket).filter(
         Ticket.status.in_([TicketStatus.OPEN, TicketStatus.IN_PROGRESS])
     ).count()
     
-    # Resolved tickets in period
-    resolved_tickets = db.query(Ticket).filter(
-        and_(
+    # Resolved tickets (in period or all time)
+    if use_date_filter:
+        resolved_tickets = db.query(Ticket).filter(
+            and_(
+                Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.CLOSED]),
+                Ticket.resolved_at.between(start_date, end_date)
+            )
+        ).all()
+    else:
+        resolved_tickets = db.query(Ticket).filter(
             Ticket.status.in_([TicketStatus.RESOLVED, TicketStatus.CLOSED]),
-            Ticket.resolved_at.between(start_date, end_date)
-        )
-    ).all()
+            Ticket.resolved_at.isnot(None)
+        ).all()
     
     # Calculate average resolution time
     if resolved_tickets:
         total_resolution_time = sum(
-            [(t.resolved_at - t.created_at).total_seconds() / 3600 for t in resolved_tickets]
+            [(t.resolved_at - t.created_at).total_seconds() / 3600 for t in resolved_tickets if t.resolved_at]
         )
         avg_resolution_hours = total_resolution_time / len(resolved_tickets)
     else:
         avg_resolution_hours = 0
     
     # SLA breach percentage
-    breached_tickets = db.query(Ticket).filter(
-        and_(
-            Ticket.created_at.between(start_date, end_date),
+    if use_date_filter:
+        breached_tickets = db.query(Ticket).filter(
+            and_(
+                Ticket.created_at.between(start_date, end_date),
+                Ticket.sla_status == SLAStatus.BREACHED
+            )
+        ).count()
+    else:
+        breached_tickets = db.query(Ticket).filter(
             Ticket.sla_status == SLAStatus.BREACHED
-        )
-    ).count()
+        ).count()
     
     sla_breach_percentage = (breached_tickets / total_tickets * 100) if total_tickets > 0 else 0
     
     # Tickets by priority
     tickets_by_priority = {}
     for priority in [TicketPriority.NORMAL, TicketPriority.HIGH, TicketPriority.URGENT]:
-        count = db.query(Ticket).filter(
-            and_(
-                Ticket.priority == priority,
-                Ticket.created_at.between(start_date, end_date)
-            )
-        ).count()
+        if use_date_filter:
+            count = db.query(Ticket).filter(
+                and_(
+                    Ticket.priority == priority,
+                    Ticket.created_at.between(start_date, end_date)
+                )
+            ).count()
+        else:
+            count = db.query(Ticket).filter(Ticket.priority == priority).count()
         tickets_by_priority[priority.value] = count
     
     # Tickets by status
     tickets_by_status = {}
     for ticket_status in [TicketStatus.OPEN, TicketStatus.IN_PROGRESS, TicketStatus.RESOLVED, TicketStatus.CLOSED]:
-        count = db.query(Ticket).filter(
-            and_(
-                Ticket.status == ticket_status,
-                Ticket.created_at.between(start_date, end_date)
-            )
-        ).count()
+        if use_date_filter:
+            count = db.query(Ticket).filter(
+                and_(
+                    Ticket.status == ticket_status,
+                    Ticket.created_at.between(start_date, end_date)
+                )
+            ).count()
+        else:
+            count = db.query(Ticket).filter(Ticket.status == ticket_status).count()
         tickets_by_status[ticket_status.value] = count
     
     # Current escalations
@@ -208,8 +241,8 @@ def get_kpis(
     
     return {
         "period": {
-            "from": start_date.isoformat(),
-            "to": end_date.isoformat()
+            "from": start_date.isoformat() if start_date else "all_time",
+            "to": end_date.isoformat() if end_date else "all_time"
         },
         "kpis": {
             "total_tickets": total_tickets,

@@ -33,5 +33,5 @@ def get_db():
 
 def init_db():
     """Initialize database tables"""
-    from app.models import user, ticket
+    from app.models import user, ticket, audit_log
     Base.metadata.create_all(bind=engine)

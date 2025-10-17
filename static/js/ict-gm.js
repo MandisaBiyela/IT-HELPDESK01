@@ -24,7 +24,7 @@ function checkAuth() {
     }
     
     const userRole = localStorage.getItem('user_role');
-    if (userRole !== 'ict_gm' && userRole !== 'admin') {
+    if (userRole !== 'ict_gm') {
         alert('Access denied. This page is for ICT General Manager only.');
         window.location.href = '/static/index.html';
         return;
@@ -130,14 +130,14 @@ function renderEscalations() {
     
     if (filtered.length === 0) {
         const message = currentFilter === 'pending' 
-            ? '✅ All escalations have been acknowledged'
+            ? 'All escalations have been acknowledged'
             : currentFilter === 'acknowledged'
             ? 'No acknowledged escalations'
-            : '✅ No active escalations';
+            : 'No active escalations';
             
         container.innerHTML = `
             <div class="empty-state">
-                <div class="empty-state-icon">✅</div>
+                <div class="empty-state-icon" style="font-size: 48px; color: #ccc;">...</div>
                 <div class="empty-state-text">${message}</div>
             </div>
         `;
@@ -150,54 +150,42 @@ function renderEscalations() {
     container.innerHTML = filtered.map(esc => renderEscalationCard(esc)).join('');
 }
 
-// Render individual escalation card
+// Render individual escalation row (list style)
 function renderEscalationCard(esc) {
     const acknowledgedClass = esc.gm_acknowledged ? 'acknowledged' : '';
     
+    // Determine status badge
+    let statusBadge = '';
+    let statusClass = '';
+    
+    if (esc.requires_update) {
+        statusBadge = 'Update Required';
+        statusClass = 'update-required';
+    } else if (esc.status === 'in_progress') {
+        statusBadge = 'In Progress';
+        statusClass = 'in-progress';
+    } else if (esc.sla_breached || esc.time_since_escalation?.includes('hours ago') || esc.time_since_escalation?.includes('days ago')) {
+        statusBadge = 'Overdue';
+        statusClass = 'overdue';
+    } else {
+        statusBadge = esc.status ? esc.status.replace('_', ' ') : 'Open';
+        statusClass = 'in-progress';
+    }
+    
     return `
-        <div class="escalation-card ${acknowledgedClass}">
-            <div class="escalation-top">
-                <span class="escalation-number">${esc.ticket_number}</span>
-                <span class="escalation-priority priority-${esc.priority.toLowerCase()}">${esc.priority}</span>
+        <div class="escalation-row ${acknowledgedClass}" onclick="viewTicketDetail('${esc.ticket_number}', ${esc.ticket_id})" style="cursor: pointer;">
+            <div class="col-ticket">
+                <div class="ticket-indicator"></div>
+                <span class="ticket-number">${esc.ticket_number || 'N/A'}</span>
             </div>
             
-            <div class="escalation-title">${escapeHtml(esc.title)}</div>
+            <div class="col-problem">${escapeHtml(esc.problem_summary || esc.title || 'No description')}</div>
             
-            <div style="margin-bottom: 12px;">
-                <span class="escalation-time">⏰ Escalated ${esc.time_since_escalation}</span>
-                ${esc.requires_update ? '<span class="update-required-badge" style="margin-left: 10px;">⚠️ Update Required</span>' : ''}
-                ${esc.gm_acknowledged ? '<span class="acknowledged-badge" style="margin-left: 10px;">✅ Acknowledged</span>' : ''}
+            <div class="col-status">
+                <span class="status-badge ${statusClass}">${statusBadge}</span>
             </div>
             
-            <div class="escalation-meta">
-                <div class="meta-row">
-                    <span class="meta-label">Status:</span>
-                    <span class="meta-value">${esc.status}</span>
-                </div>
-                <div class="meta-row">
-                    <span class="meta-label">Assigned To:</span>
-                    <span class="meta-value">${esc.assignee_name}</span>
-                </div>
-                <div class="meta-row">
-                    <span class="meta-label">Category:</span>
-                    <span class="meta-value">${esc.category}</span>
-                </div>
-                <div class="meta-row">
-                    <span class="meta-label">Reported By:</span>
-                    <span class="meta-value">${esc.reported_by_name}</span>
-                </div>
-            </div>
-            
-            <div class="escalation-actions">
-                <button class="action-btn btn-view" onclick="viewTicketDetail('${esc.ticket_number}', ${esc.ticket_id})">
-                    👁️ View Details
-                </button>
-                <button class="action-btn btn-acknowledge" 
-                        onclick="showAcknowledgeModal(${esc.ticket_id}, '${esc.ticket_number}')"
-                        ${esc.gm_acknowledged ? 'disabled' : ''}>
-                    ${esc.gm_acknowledged ? '✅ Acknowledged' : '✅ Acknowledge'}
-                </button>
-            </div>
+            <div class="col-assignee">${esc.assignee_name || esc.assignee?.name || 'Unassigned'}</div>
         </div>
     `;
 }
@@ -206,7 +194,7 @@ function renderEscalationCard(esc) {
 async function viewTicketDetail(ticketNumber, ticketId) {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/tickets/${ticketId}`, {
+        const response = await fetch(`${API_BASE}/tickets/${ticketNumber}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -218,21 +206,24 @@ async function viewTicketDetail(ticketNumber, ticketId) {
         
         document.getElementById('modalTicketNumber').textContent = ticketNumber;
         
+        // Store ticket ID for acknowledge button
+        selectedTicket = { id: ticketId, number: ticketNumber };
+        
         const modalBody = document.getElementById('modalBody');
         modalBody.innerHTML = `
             <div class="detail-section">
                 <h4>Ticket Information</h4>
                 <div class="info-grid">
                     <span class="info-label">Status:</span>
-                    <span class="info-value">${ticket.status}</span>
+                    <span class="info-value">${ticket.status || 'N/A'}</span>
                     
                     <span class="info-label">Priority:</span>
                     <span class="info-value">
-                        <span class="escalation-priority priority-${ticket.priority.toLowerCase()}">${ticket.priority}</span>
+                        <span class="escalation-priority priority-${(ticket.priority || 'normal').toLowerCase()}">${ticket.priority || 'Normal'}</span>
                     </span>
                     
-                    <span class="info-label">Category:</span>
-                    <span class="info-value">${ticket.category}</span>
+                    <span class="info-label">Problem Summary:</span>
+                    <span class="info-value">${ticket.problem_summary || 'N/A'}</span>
                     
                     <span class="info-label">Created:</span>
                     <span class="info-value">${formatDateTime(ticket.created_at)}</span>
@@ -241,23 +232,23 @@ async function viewTicketDetail(ticketNumber, ticketId) {
                     <span class="info-value">${ticket.sla_deadline ? formatDateTime(ticket.sla_deadline) : 'N/A'}</span>
                     
                     <span class="info-label">Assigned To:</span>
-                    <span class="info-value">${ticket.assignee_name}</span>
+                    <span class="info-value">${ticket.assignee_name || 'Unassigned'}</span>
                     
                     <span class="info-label">Reported By:</span>
-                    <span class="info-value">${ticket.reported_by_name}</span>
+                    <span class="info-value">${ticket.user_name || 'N/A'}</span>
                     
                     <span class="info-label">Email:</span>
-                    <span class="info-value">${ticket.reported_by_email}</span>
+                    <span class="info-value">${ticket.user_email || 'N/A'}</span>
                     
                     <span class="info-label">Phone:</span>
-                    <span class="info-value">${ticket.reported_by_phone || 'N/A'}</span>
+                    <span class="info-value">${ticket.user_phone || 'N/A'}</span>
                 </div>
             </div>
             
             <div class="detail-section">
                 <h4>Description</h4>
                 <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; line-height: 1.6;">
-                    ${escapeHtml(ticket.description)}
+                    ${escapeHtml(ticket.problem_description || 'No description provided')}
                 </div>
             </div>
             
@@ -267,6 +258,16 @@ async function viewTicketDetail(ticketNumber, ticketId) {
                     ${renderUpdates(ticket.updates.slice(0, 5))}
                 </div>
             ` : ''}
+            
+            <div class="detail-section" style="border-bottom: none;">
+                <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button class="action-btn btn-acknowledge" 
+                            onclick="event.stopPropagation(); closeTicketModal(); showAcknowledgeModal(${ticketId}, '${ticketNumber}')"
+                            ${ticket.gm_acknowledged ? 'disabled' : ''}>
+                        ${ticket.gm_acknowledged ? '✓ Acknowledged' : 'Acknowledge Escalation'}
+                    </button>
+                </div>
+            </div>
         `;
         
         document.getElementById('ticketModal').classList.add('active');
@@ -314,7 +315,10 @@ function closeAcknowledgeModal() {
 
 // Submit acknowledgment
 async function submitAcknowledgment() {
-    if (!selectedTicket) return;
+    if (!selectedTicket) {
+        showError('No ticket selected');
+        return;
+    }
     
     const note = document.getElementById('acknowledgmentNote').value.trim();
     
@@ -336,8 +340,9 @@ async function submitAcknowledgment() {
             throw new Error(error.detail || 'Failed to acknowledge escalation');
         }
         
+        const ticketNumber = selectedTicket.number || 'Ticket';
         closeAcknowledgeModal();
-        showSuccess(`✅ Escalation ${selectedTicket.number} acknowledged successfully!`);
+        showSuccess(`Escalation ${ticketNumber} acknowledged successfully!`);
         
         // Reload data
         await loadDashboardData();
@@ -391,3 +396,7 @@ function showSuccess(message) {
 function showError(message) {
     alert('❌ ' + message);
 }
+
+// Start the server (for development only)
+// cd /d "c:\Users\Student\Desktop\IT-HELPDESK01\IT-HELPDESK01"
+// python run_server.py

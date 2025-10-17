@@ -1,499 +1,235 @@
-// ICT Manager Dashboard - Analytics & Reporting
+﻿// ICT Manager - View Only & Export Functionality
 const API_BASE = 'http://localhost:8000/api';
-let currentFilters = {
-    date_from: null,
-    date_to: null
-};
+let currentFilters = { date_from: null, date_to: null, status: '', priority: '' };
+let allTickets = [];
 let charts = {};
+let refreshInterval;
 
-// Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
     initializeDateFilters();
-    loadAllData();
-    
-    // Auto-refresh every 60 seconds
-    setInterval(loadAllData, 60000);
+    loadData();
+    // Auto-refresh every 30 seconds
+    refreshInterval = setInterval(() => {
+        loadData();
+    }, 30000);
 });
 
-// Authentication
 function checkAuth() {
+    console.log('[ICT Manager] Checking authentication...');
     const token = localStorage.getItem('token');
+    const userRole = localStorage.getItem('user_role');
+    const userName = localStorage.getItem('user_name');
+    
+    console.log('[ICT Manager] Token exists:', !!token);
+    console.log('[ICT Manager] User role:', userRole);
+    console.log('[ICT Manager] User name:', userName);
+    
     if (!token) {
+        console.log('[ICT Manager] No token found, redirecting to login');
         window.location.href = '/static/index.html';
         return;
     }
-    
-    const userRole = localStorage.getItem('user_role');
-    if (userRole !== 'ict_manager' && userRole !== 'admin') {
+    if (userRole !== 'ict_manager') {
+        console.log('[ICT Manager] Access denied for role:', userRole);
         alert('Access denied. This page is for ICT Managers only.');
         window.location.href = '/static/index.html';
         return;
     }
-    
-    const userName = localStorage.getItem('user_name');
+    console.log('[ICT Manager] Authentication successful');
     document.getElementById('userName').textContent = userName || 'ICT Manager';
 }
 
 function logout() {
+    // Clear refresh interval before logout
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
     localStorage.clear();
     window.location.href = '/static/index.html';
 }
 
-// Initialize date filters (last 30 days by default)
 function initializeDateFilters() {
     const today = new Date();
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(today.getDate() - 30);
-    
-    const dateFromInput = document.getElementById('dateFrom');
-    const dateToInput = document.getElementById('dateTo');
-    
-    dateFromInput.value = formatDateForInput(thirtyDaysAgo);
-    dateToInput.value = formatDateForInput(today);
-    
-    currentFilters.date_from = dateFromInput.value;
-    currentFilters.date_to = dateToInput.value;
+    document.getElementById('dateFrom').value = formatDateForInput(thirtyDaysAgo);
+    document.getElementById('dateTo').value = formatDateForInput(today);
+    currentFilters.date_from = document.getElementById('dateFrom').value;
+    currentFilters.date_to = document.getElementById('dateTo').value;
 }
 
 function formatDateForInput(date) {
     return date.toISOString().split('T')[0];
 }
 
-// Apply filters
 function applyFilters() {
     currentFilters.date_from = document.getElementById('dateFrom').value;
     currentFilters.date_to = document.getElementById('dateTo').value;
-    
-    loadAllData();
+    currentFilters.status = document.getElementById('statusFilter').value;
+    currentFilters.priority = document.getElementById('priorityFilter').value;
+    loadData();
 }
 
 function resetFilters() {
     initializeDateFilters();
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('priorityFilter').value = '';
+    currentFilters.status = '';
+    currentFilters.priority = '';
     applyFilters();
 }
 
-// Load all dashboard data
-async function loadAllData() {
-    await Promise.all([
-        loadKPIs(),
-        loadEscalations(),
-        loadAuditLogs(),
-        loadTechnicianWorkload()
-    ]);
-}
+async function loadData() {
+    console.log('[ICT Manager] Loading data...');
+    const token = localStorage.getItem('token');
+    const params = new URLSearchParams();
+    if (currentFilters.date_from) params.append('start_date', currentFilters.date_from);
+    if (currentFilters.date_to) params.append('end_date', currentFilters.date_to);
 
-// Load KPIs and render charts
-async function loadKPIs() {
+    console.log('[ICT Manager] Filters:', currentFilters);
+    
     try {
-        const token = localStorage.getItem('token');
-        const params = new URLSearchParams();
+        // Fetch BOTH statistics and tickets WITHOUT date filters to show ALL data
+        console.log('[ICT Manager] Fetching statistics and tickets...');
+        const [statsResponse, ticketsResponse] = await Promise.all([
+            fetch(`${API_BASE}/reports/statistics`, { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch(`${API_BASE}/tickets`, { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+
+        console.log('[ICT Manager] Stats response status:', statsResponse.status);
+        console.log('[ICT Manager] Tickets response status:', ticketsResponse.status);
+
+        const stats = await statsResponse.json();
+        const tickets = await ticketsResponse.json();
         
-        if (currentFilters.date_from) params.append('date_from', currentFilters.date_from);
-        if (currentFilters.date_to) params.append('date_to', currentFilters.date_to);
+        console.log('[ICT Manager] Stats:', stats);
+        console.log('[ICT Manager] Tickets count:', tickets.length);
         
-        const response = await fetch(`${API_BASE}/reports/kpis?${params}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
+        allTickets = tickets;
+        renderStatistics(stats);
+        renderCharts(stats);
+        renderTicketsTable(filterTickets(tickets));
         
-        if (!response.ok) throw new Error('Failed to load KPIs');
-        
-        const data = await response.json();
-        
-        renderKPIs(data.kpis);
-        renderCharts(data.breakdowns);
-        
+        // Update last refresh time
+        const now = new Date();
+        document.getElementById('lastUpdated').textContent = now.toLocaleTimeString();
+        console.log('[ICT Manager] Data loaded successfully');
     } catch (error) {
-        console.error('Error loading KPIs:', error);
-        showError('Failed to load KPI data');
+        console.error('[ICT Manager] Error loading data:', error);
+        document.getElementById('lastUpdated').textContent = 'Error loading data';
     }
 }
 
-// Render KPI cards
-function renderKPIs(kpis) {
-    document.getElementById('totalTickets').textContent = kpis.total_tickets || 0;
-    document.getElementById('openTickets').textContent = kpis.open_tickets || 0;
-    document.getElementById('resolvedTickets').textContent = kpis.resolved_tickets || 0;
-    
-    const avgTime = kpis.avg_resolution_time_hours || 0;
-    document.getElementById('avgResolutionTime').textContent = avgTime.toFixed(1);
-    
-    const breachPercent = kpis.sla_breach_percentage || 0;
-    document.getElementById('slaBreachPercent').textContent = breachPercent.toFixed(1) + '%';
+function filterTickets(tickets) {
+    return tickets.filter(t => {
+        if (currentFilters.status && t.status !== currentFilters.status) return false;
+        if (currentFilters.priority && t.priority !== currentFilters.priority) return false;
+        return true;
+    });
 }
 
-// Render charts
-function renderCharts(breakdowns) {
-    renderPriorityChart(breakdowns.by_priority || {});
-    renderStatusChart(breakdowns.by_status || {});
+function renderStatistics(stats) {
+    document.getElementById('totalTickets').textContent = stats.total_tickets || 0;
+    document.getElementById('resolvedTickets').textContent = stats.status_breakdown.resolved || 0;
+    document.getElementById('inProgressTickets').textContent = stats.status_breakdown.in_progress || 0;
+    document.getElementById('waitingTickets').textContent = stats.status_breakdown.waiting_on_user || 0;
+    document.getElementById('escalatedTickets').textContent = stats.escalated_count || 0;
+    document.getElementById('avgResolutionTime').textContent = (stats.average_resolution_hours || 0).toFixed(2);
 }
 
-// Priority Chart (Bar)
-function renderPriorityChart(data) {
-    const ctx = document.getElementById('priorityChart');
-    
-    // Destroy existing chart
-    if (charts.priority) {
-        charts.priority.destroy();
-    }
-    
-    charts.priority = new Chart(ctx, {
+function renderCharts(stats) {
+    const statusCtx = document.getElementById('statusChart');
+    const priorityCtx = document.getElementById('priorityChart');
+
+    if (charts.status) charts.status.destroy();
+    if (charts.priority) charts.priority.destroy();
+
+    charts.status = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Open', 'In Progress', 'Waiting on User', 'Resolved', 'Closed'],
+            datasets: [{
+                data: [
+                    stats.status_breakdown.open || 0,
+                    stats.status_breakdown.in_progress || 0,
+                    stats.status_breakdown.waiting_on_user || 0,
+                    stats.status_breakdown.resolved || 0,
+                    stats.status_breakdown.closed || 0
+                ],
+                backgroundColor: ['#0066cc', '#ff9800', '#ffd700', '#4caf50', '#666']
+            }]
+        }
+    });
+
+    charts.priority = new Chart(priorityCtx, {
         type: 'bar',
         data: {
-            labels: ['Urgent', 'High', 'Normal', 'Low'],
+            labels: ['Urgent', 'High', 'Normal'],
             datasets: [{
                 label: 'Tickets',
                 data: [
-                    data.Urgent || 0,
-                    data.High || 0,
-                    data.Normal || 0,
-                    data.Low || 0
+                    stats.priority_breakdown.urgent || 0,
+                    stats.priority_breakdown.high || 0,
+                    stats.priority_breakdown.normal || 0
                 ],
-                backgroundColor: [
-                    '#f44336',
-                    '#ff9800',
-                    '#0066cc',
-                    '#4caf50'
-                ],
-                borderRadius: 6,
-                borderWidth: 0
+                backgroundColor: ['#f44336', '#ff9800', '#0066cc']
             }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.parsed.y + ' tickets';
-                        }
-                    }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1
-                    }
-                }
-            }
         }
     });
 }
 
-// Status Chart (Doughnut)
-function renderStatusChart(data) {
-    const ctx = document.getElementById('statusChart');
+function renderTicketsTable(tickets) {
+    document.getElementById('ticketCount').textContent = tickets.length;
+    const container = document.getElementById('ticketsTableContainer');
     
-    // Destroy existing chart
-    if (charts.status) {
-        charts.status.destroy();
+    if (tickets.length === 0) {
+        container.innerHTML = '<p style="text-align:center;padding:40px;color:#999;">No tickets found</p>';
+        return;
     }
+
+    let html = '<table class="tickets-table"><thead><tr>';
+    html += '<th>Ticket ID</th><th>Created</th><th>Summary</th><th>Priority</th><th>Status</th><th>Assignee</th></tr></thead><tbody>';
     
-    const labels = Object.keys(data);
-    const values = Object.values(data);
-    
-    charts.status = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: values,
-                backgroundColor: [
-                    '#0066cc',
-                    '#ff9800',
-                    '#9c27b0',
-                    '#4caf50',
-                    '#f44336'
-                ],
-                borderWidth: 2,
-                borderColor: '#fff'
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 15,
-                        font: {
-                            size: 12
-                        }
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            }
-        }
+    tickets.forEach(t => {
+        html += '<tr>';
+        html += `<td>${t.ticket_number}</td>`;
+        html += `<td>${new Date(t.created_at).toLocaleString()}</td>`;
+        html += `<td>${t.problem_summary}</td>`;
+        html += `<td><span class="priority-badge priority-${t.priority}">${t.priority.toUpperCase()}</span></td>`;
+        html += `<td><span class="status-badge status-${t.status}">${t.status.replace('_', ' ').toUpperCase()}</span></td>`;
+        // Use assignee object if available, fallback to assignee_name
+        const assigneeName = t.assignee ? t.assignee.name : (t.assignee_name || 'Unassigned');
+        html += `<td>${assigneeName}</td>`;
+        html += '</tr>';
     });
+    html += '</tbody></table>';
+    container.innerHTML = html;
 }
 
-// Load escalations
-async function loadEscalations() {
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/escalations?status_filter=Open`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        if (!response.ok) throw new Error('Failed to load escalations');
-        
-        const data = await response.json();
-        
-        renderEscalations(data.escalations || []);
-        
-        document.getElementById('escalationCount').textContent = 
-            `${data.total || 0} active escalations`;
-        
-    } catch (error) {
-        console.error('Error loading escalations:', error);
-        document.getElementById('escalationsList').innerHTML = 
-            '<div class="empty-state">Failed to load escalations</div>';
-    }
-}
-
-// Render escalations list
-function renderEscalations(escalations) {
-    const container = document.getElementById('escalationsList');
-    
-    if (escalations.length === 0) {
-        container.innerHTML = '<div class="empty-state">✅ No active escalations</div>';
-        return;
-    }
-    
-    container.innerHTML = escalations.map(esc => `
-        <div class="escalation-item">
-            <div class="escalation-header">
-                <span class="escalation-ticket">${esc.ticket_number}</span>
-                <span class="escalation-time">${esc.time_since_escalation}</span>
-            </div>
-            <div class="escalation-details">
-                <strong>${escapeHtml(esc.title)}</strong>
-            </div>
-            <div class="escalation-assignee">
-                👤 Assigned to: ${esc.assignee_name}
-                ${esc.requires_update ? '<span style="color: #f44336; margin-left: 10px;">⚠️ Update Required</span>' : ''}
-            </div>
-        </div>
-    `).join('');
-}
-
-// Load technician workload
-async function loadTechnicianWorkload() {
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/technicians/workload`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        if (!response.ok) throw new Error('Failed to load workload data');
-        
-        const data = await response.json();
-        
-        renderTechnicianWorkload(data.technicians || []);
-        
-    } catch (error) {
-        console.error('Error loading technician workload:', error);
-        document.getElementById('workloadGrid').innerHTML = 
-            '<div class="empty-state">Failed to load technician data</div>';
-    }
-}
-
-// Render technician workload
-function renderTechnicianWorkload(technicians) {
-    const container = document.getElementById('workloadGrid');
-    
-    if (technicians.length === 0) {
-        container.innerHTML = '<div class="empty-state">No technician data available</div>';
-        return;
-    }
-    
-    container.innerHTML = technicians.map(tech => {
-        const loadClass = tech.load_status || 'available';
-        
-        return `
-            <div class="tech-card ${loadClass}">
-                <div class="tech-name">${tech.technician_name}</div>
-                <div class="tech-stats">
-                    <div class="tech-stat">
-                        <span class="tech-stat-label">Active:</span>
-                        <span class="tech-stat-value">${tech.active_tickets}</span>
-                    </div>
-                    <div class="tech-stat">
-                        <span class="tech-stat-label">Escalated:</span>
-                        <span class="tech-stat-value">${tech.escalated_tickets}</span>
-                    </div>
-                    <div class="tech-stat" style="grid-column: 1 / -1;">
-                        <span class="tech-stat-label">Resolved (30d):</span>
-                        <span class="tech-stat-value">${tech.resolved_this_month}</span>
-                    </div>
-                </div>
-                <span class="load-badge load-${loadClass}">
-                    ${loadClass.toUpperCase()}
-                </span>
-            </div>
-        `;
-    }).join('');
-}
-
-// Load audit logs
-async function loadAuditLogs() {
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/audit-logs?limit=20`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-        
-        if (!response.ok) throw new Error('Failed to load audit logs');
-        
-        const data = await response.json();
-        
-        renderAuditLogs(data.logs || []);
-        
-    } catch (error) {
-        console.error('Error loading audit logs:', error);
-        document.getElementById('auditLogList').innerHTML = 
-            '<div class="empty-state">Failed to load audit logs</div>';
-    }
-}
-
-// Render audit logs
-function renderAuditLogs(logs) {
-    const container = document.getElementById('auditLogList');
-    
-    if (logs.length === 0) {
-        container.innerHTML = '<div class="empty-state">No audit logs available</div>';
-        return;
-    }
-    
-    container.innerHTML = logs.map(log => {
-        const isCritical = ['sla_escalated', 'ticket_reassigned'].includes(log.action);
-        const criticalClass = isCritical ? 'critical' : '';
-        
-        return `
-            <div class="audit-item ${criticalClass}">
-                <div class="audit-header">
-                    <span class="audit-user">${log.user_name || 'System'}</span>
-                    <span class="audit-time">${getTimeAgo(log.created_at)}</span>
-                </div>
-                <div class="audit-action">
-                    ${formatAuditAction(log.action, log.entity_type)}
-                    ${log.entity_type === 'ticket' ? ` - Ticket #${log.entity_id}` : ''}
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-// Format audit action
-function formatAuditAction(action, entityType) {
-    const actions = {
-        'created': '➕ Created',
-        'updated': '✏️ Updated',
-        'status_changed': '🔄 Status Changed',
-        'assigned': '👤 Assigned',
-        'sla_escalated': '🚨 SLA Escalated',
-        'ticket_reassigned': '🔄 Reassigned',
-        'forced_update': '⚠️ Forced Update',
-        'time_tracked': '⏱️ Time Tracked'
-    };
-    
-    return actions[action] || action;
-}
-
-// Export to CSV
 async function exportToCSV() {
+    const token = localStorage.getItem('token');
+    const params = new URLSearchParams();
+    if (currentFilters.date_from) params.append('start_date', currentFilters.date_from);
+    if (currentFilters.date_to) params.append('end_date', currentFilters.date_to);
+    if (currentFilters.status) params.append('status', currentFilters.status);
+    if (currentFilters.priority) params.append('priority', currentFilters.priority);
+
     try {
-        const token = localStorage.getItem('token');
-        const params = new URLSearchParams();
-        
-        if (currentFilters.date_from) params.append('date_from', currentFilters.date_from);
-        if (currentFilters.date_to) params.append('date_to', currentFilters.date_to);
-        
-        const response = await fetch(`${API_BASE}/reports/export?${params}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
+        const response = await fetch(`${API_BASE}/reports/tickets/export?${params}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         
-        if (!response.ok) throw new Error('Failed to export data');
-        
-        // Get filename from response header
-        const contentDisposition = response.headers.get('content-disposition');
-        let filename = 'tickets_export.csv';
-        if (contentDisposition) {
-            const match = contentDisposition.match(/filename="(.+)"/);
-            if (match) filename = match[1];
-        }
-        
-        // Download file
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = filename;
+        a.download = `tickets_export_${new Date().toISOString().split('T')[0]}.csv`;
         document.body.appendChild(a);
         a.click();
+        a.remove();
         window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        showSuccess('✅ CSV exported successfully!');
-        
     } catch (error) {
-        console.error('Error exporting CSV:', error);
-        showError('Failed to export data');
+        alert('Error exporting CSV: ' + error.message);
     }
-}
-
-// Utility functions
-function getTimeAgo(dateString) {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
-}
-
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-function showSuccess(message) {
-    alert(message);
-}
-
-function showError(message) {
-    alert('❌ ' + message);
 }

@@ -110,6 +110,7 @@ def get_ticket_statistics(
     status_breakdown = {
         'open': len([t for t in tickets if t.status == TicketStatus.OPEN]),
         'in_progress': len([t for t in tickets if t.status == TicketStatus.IN_PROGRESS]),
+        'waiting_on_user': len([t for t in tickets if t.status == TicketStatus.WAITING_ON_USER]),
         'resolved': len([t for t in tickets if t.status == TicketStatus.RESOLVED]),
         'closed': len([t for t in tickets if t.status == TicketStatus.CLOSED])
     }

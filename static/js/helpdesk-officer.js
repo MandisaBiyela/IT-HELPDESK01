@@ -129,7 +129,14 @@ function updateTechnicianPanel() {
     
     techList.innerHTML = '';
     sortedTechs.forEach(tech => {
-        const load = techLoads[tech.id] || 0;
+        // Get all active tickets for this technician
+        const activeTickets = allTickets.filter(t => 
+            t.assignee_id === tech.id && 
+            t.status !== 'Resolved' && 
+            t.status !== 'Closed'
+        );
+        
+        const load = activeTickets.length;
         let loadClass = 'available';
         let indicatorClass = 'green';
         
@@ -143,6 +150,27 @@ function updateTechnicianPanel() {
         
         const techCard = document.createElement('div');
         techCard.className = `tech-card ${loadClass}`;
+        
+        // Build ticket list HTML
+        let ticketsHTML = '';
+        if (activeTickets.length > 0) {
+            ticketsHTML = '<div class="tech-tickets">';
+            activeTickets.forEach((ticket, index) => {
+                if (index < 5) {  // Show up to 5 tickets
+                    ticketsHTML += `
+                        <div class="tech-ticket-item">
+                            <span>${ticket.ticket_number}</span>
+                            <span class="tech-ticket-priority ${ticket.priority.toLowerCase()}">${ticket.priority}</span>
+                        </div>
+                    `;
+                }
+            });
+            if (activeTickets.length > 5) {
+                ticketsHTML += `<div class="tech-ticket-more">+${activeTickets.length - 5} more</div>`;
+            }
+            ticketsHTML += '</div>';
+        }
+        
         techCard.innerHTML = `
             <div class="tech-name">${tech.name}</div>
             <div class="tech-load">
@@ -150,6 +178,7 @@ function updateTechnicianPanel() {
                 ${load} active ticket${load !== 1 ? 's' : ''}
             </div>
             ${tech.technician_type ? `<div style="font-size: 11px; color: #888; margin-top: 4px;">${tech.technician_type}</div>` : ''}
+            ${ticketsHTML}
         `;
         techList.appendChild(techCard);
     });
@@ -162,6 +191,13 @@ async function loadTickets() {
         if (response && response.ok) {
             allTickets = await response.json();
             applyFilter(currentFilter);
+            
+            // Update last refresh time
+            const now = new Date();
+            const timeElement = document.getElementById('lastUpdate');
+            if (timeElement) {
+                timeElement.textContent = `Last updated: ${now.toLocaleTimeString()}`;
+            }
         }
     } catch (error) {
         console.error('Error loading tickets:', error);
@@ -188,19 +224,9 @@ function applyFilter(filter) {
                 new Date(t.created_at).toDateString() === today
             );
             break;
-        case 'unassigned':
-            filteredTickets = filteredTickets.filter(t => 
-                t.status === 'Open' && !t.assignee_id
-            );
-            break;
         case 'urgent':
             filteredTickets = filteredTickets.filter(t => 
                 t.priority === 'Urgent' && t.status !== 'Resolved' && t.status !== 'Closed'
-            );
-            break;
-        case 'my':
-            filteredTickets = filteredTickets.filter(t => 
-                t.created_by_id === currentUser?.id
             );
             break;
         default:
@@ -209,6 +235,18 @@ function applyFilter(filter) {
     }
     
     displayTickets(filteredTickets);
+    updateStatistics();
+}
+
+// Update Statistics Dashboard
+function updateStatistics() {
+    const total = allTickets.length;
+    const solved = allTickets.filter(t => t.status === 'Resolved' || t.status === 'Closed').length;
+    const unsolved = total - solved;
+    
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statSolved').textContent = solved;
+    document.getElementById('statUnsolved').textContent = unsolved;
 }
 
 // Display Tickets
@@ -218,7 +256,7 @@ function displayTickets(tickets) {
     if (tickets.length === 0) {
         ticketList.innerHTML = `
             <div class="empty-state">
-                <div class="empty-state-icon">📋</div>
+                <div class="empty-state-icon" style="font-size: 48px; color: #ccc;">...</div>
                 <p>No tickets found</p>
             </div>
         `;
@@ -250,33 +288,37 @@ function createTicketCard(ticket) {
     const card = document.createElement('div');
     card.className = `ticket-card ${ticket.priority.toLowerCase()}`;
     
-    const assigneeName = ticket.assignee_id 
-        ? (allTechnicians.find(t => t.id === ticket.assignee_id)?.name || 'Unknown')
-        : 'Unassigned';
+    // Get assignee name - now using assignee_name from API or fallback to assignee object
+    const assigneeName = ticket.assignee_name || 
+                        (ticket.assignee ? ticket.assignee.name : null) ||
+                        (ticket.assignee_id && allTechnicians.find(t => t.id === ticket.assignee_id)?.name) ||
+                        'Unassigned';
     
     const timeAgo = getTimeAgo(ticket.created_at);
     const slaInfo = getSLAInfo(ticket);
     
+    // Use fields directly from API response
+    const userName = ticket.user_name || 'Unknown User';
+    const userEmail = ticket.user_email || 'No email';
+    const problemSummary = ticket.problem_summary || 'No summary';
+    
     card.innerHTML = `
         <div class="ticket-header">
             <span class="ticket-number">${ticket.ticket_number}</span>
-            <span class="sla-badge ${slaInfo.class}">${slaInfo.text}</span>
+            ${slaInfo.text ? `<span class="sla-badge ${slaInfo.class}">${slaInfo.text}</span>` : ''}
         </div>
-        <div class="ticket-summary">${ticket.problem_summary}</div>
+        <div class="ticket-summary">${problemSummary}</div>
         <div class="ticket-meta">
-            <span>👤 ${ticket.user_name}</span>
-            <span>📧 ${ticket.user_email}</span>
-            <span>⏰ ${timeAgo}</span>
+            <span>👤 ${userName}</span>
+            <span>📧 ${userEmail}</span>
+            <span>🕒 ${timeAgo}</span>
         </div>
         <div class="ticket-meta">
-            <span>📌 Priority: ${ticket.priority}</span>
-            <span>📊 Status: ${ticket.status}</span>
-            <span>👨‍💻 ${assigneeName}</span>
+            <span>Priority: ${ticket.priority}</span>
+            <span>Status: ${ticket.status}</span>
+            <span>Assigned to: ${assigneeName}</span>
         </div>
         <div class="ticket-actions">
-            ${!ticket.assignee_id || ticket.status === 'Open' ? 
-                `<button class="assign-btn" onclick="quickAssign(${ticket.id})">Assign</button>` : 
-                ''}
             <button class="view-btn" onclick="viewTicket(${ticket.id})">View Details</button>
         </div>
     `;
@@ -286,6 +328,14 @@ function createTicketCard(ticket) {
 
 // Get SLA Information
 function getSLAInfo(ticket) {
+    // Don't show SLA badges for resolved or closed tickets
+    if (ticket.status === 'Resolved' || ticket.status === 'Closed') {
+        return {
+            class: '',
+            text: ''
+        };
+    }
+    
     const now = new Date();
     const deadline = new Date(ticket.sla_deadline);
     const minutesRemaining = Math.floor((deadline - now) / 60000);
@@ -293,7 +343,7 @@ function getSLAInfo(ticket) {
     if (minutesRemaining < 0) {
         return {
             class: 'sla-breached',
-            text: `⚠️ BREACHED ${Math.abs(minutesRemaining)}m ago`
+            text: `BREACHED ${Math.abs(minutesRemaining)}m ago`
         };
     } else if (minutesRemaining <= 2) {
         return {
@@ -332,12 +382,20 @@ function getTimeAgo(dateString) {
 }
 
 // Quick Assign Function
+// Quick Assign - Now uses ticket number instead of ID
 async function quickAssign(ticketId) {
+    // Find the ticket to get its ticket_number
+    const ticket = allTickets.find(t => t.id === ticketId);
+    if (!ticket) {
+        showError('Ticket not found');
+        return;
+    }
+    
     const assigneeId = prompt('Enter technician ID to assign (or leave blank to cancel):');
     if (!assigneeId) return;
     
     try {
-        const response = await apiRequest(`/tickets/${ticketId}`, {
+        const response = await apiRequest(`/tickets/${ticket.ticket_number}`, {
             method: 'PATCH',
             body: JSON.stringify({
                 assignee_id: parseInt(assigneeId)
@@ -357,10 +415,126 @@ async function quickAssign(ticketId) {
 }
 
 // View Ticket Details
-function viewTicket(ticketId) {
-    // Store ticket ID and redirect to main page for details
-    localStorage.setItem('viewTicketId', ticketId);
-    window.open('/index.html', '_blank');
+async function viewTicket(ticketId) {
+    // Find ticket in current list to get ticket number
+    const ticketPreview = allTickets.find(t => t.id === ticketId);
+    if (!ticketPreview) {
+        showError('Ticket not found');
+        return;
+    }
+
+    // Fetch complete ticket details from API
+    let ticket;
+    try {
+        const response = await apiRequest(`/tickets/${ticketPreview.ticket_number}`);
+        if (response && response.ok) {
+            ticket = await response.json();
+        } else {
+            showError('Failed to load ticket details');
+            return;
+        }
+    } catch (error) {
+        console.error('Error fetching ticket details:', error);
+        showError('Failed to load ticket details');
+        return;
+    }
+
+    // Get assignee name
+    const assignee = allTechnicians.find(t => t.id === ticket.assignee_id);
+    const assigneeName = assignee ? assignee.name : ticket.assignee_name || 'Unassigned';
+
+    // Fetch ticket history/updates for progress
+    let ticketUpdates = [];
+    try {
+        const response = await apiRequest(`/tickets/${ticket.ticket_number}/history`);
+        if (response && response.ok) {
+            ticketUpdates = await response.json();
+        }
+    } catch (error) {
+        console.error('Error fetching ticket history:', error);
+    }
+
+    // Build progress timeline
+    let progressHTML = '<div class="ticket-progress">';
+    if (ticketUpdates && ticketUpdates.length > 0) {
+        ticketUpdates.forEach(update => {
+            progressHTML += `
+                <div class="progress-item">
+                    <div class="progress-time">${new Date(update.created_at).toLocaleString()}</div>
+                    <div class="progress-action">${update.action}</div>
+                    <div class="progress-details">${update.details || ''}</div>
+                </div>
+            `;
+        });
+    } else {
+        progressHTML += `<div class="progress-item">No update history available</div>`;
+    }
+    progressHTML += '</div>';
+
+    // Show modal with enhanced details
+    const modalHTML = `
+        <div class="modal-overlay" id="ticketDetailsModal">
+            <div class="modal-content" style="max-width: 800px;">
+                <div class="modal-header">
+                    <h2>Ticket Details - ${ticket.ticket_number}</h2>
+                    <button class="close-btn" onclick="closeTicketDetailsModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="ticket-info-grid">
+                        <div class="info-section">
+                            <h3>Reporter Information</h3>
+                            <p><strong>Name:</strong> ${ticket.user_name || ticket.reported_by_name || 'N/A'}</p>
+                            <p><strong>Email:</strong> ${ticket.user_email || ticket.reported_by_email || 'N/A'}</p>
+                            <p><strong>Phone:</strong> ${ticket.user_phone || ticket.reported_by_phone || 'N/A'}</p>
+                        </div>
+                        <div class="info-section">
+                            <h3>Assignment Information</h3>
+                            <p><strong>Assigned to:</strong> ${assigneeName}</p>
+                            <p><strong>Status:</strong> <span class="status-badge ${ticket.status.toLowerCase()}">${ticket.status}</span></p>
+                            <p><strong>Priority:</strong> <span class="priority-badge ${ticket.priority.toLowerCase()}">${ticket.priority}</span></p>
+                        </div>
+                    </div>
+                    <div class="info-section">
+                        <h3>Problem Details</h3>
+                        <p><strong>Summary:</strong> ${ticket.problem_summary || ticket.title || 'N/A'}</p>
+                        <p><strong>Description:</strong> ${ticket.problem_description || ticket.description || 'No description provided'}</p>
+                    </div>
+                    <div class="info-section">
+                        <h3>Ticket Progress</h3>
+                        ${progressHTML}
+                    </div>
+                    <div class="info-section">
+                        <h3>Timeline</h3>
+                        <p><strong>Created:</strong> ${new Date(ticket.created_at).toLocaleString()}</p>
+                        ${ticket.resolved_at ? `<p><strong>Resolved:</strong> ${new Date(ticket.resolved_at).toLocaleString()}</p>` : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Remove existing modal if present
+    const existingModal = document.getElementById('ticketDetailsModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Add modal to DOM
+    document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Show modal
+    setTimeout(() => {
+        document.getElementById('ticketDetailsModal').classList.add('active');
+    }, 10);
+}
+
+// Close Ticket Details Modal
+function closeTicketDetailsModal() {
+    const modal = document.getElementById('ticketDetailsModal');
+    if (modal) {
+        modal.classList.remove('active');
+        setTimeout(() => modal.remove(), 300);
+    }
 }
 
 // Open Create Ticket Modal
@@ -411,9 +585,8 @@ async function createTicket(event) {
 
 // Logout
 function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('viewTicketId');
-    window.location.href = '/index.html';
+    localStorage.clear();
+    window.location.href = '/static/index.html';
 }
 
 // Show Success Message
@@ -424,4 +597,164 @@ function showSuccess(message) {
 // Show Error Message
 function showError(message) {
     alert('✗ ' + message);
+}
+
+// ============ USER MANAGEMENT FUNCTIONS ============
+
+// Open Manage Users Modal
+function openManageUsersModal() {
+    document.getElementById('manageUsersModal').style.display = 'flex';
+    loadAllUsers();
+}
+
+// Close Manage Users Modal
+function closeManageUsersModal() {
+    document.getElementById('manageUsersModal').style.display = 'none';
+    hideCreateUserForm();
+}
+
+// Show Create User Form
+function showCreateUserForm() {
+    document.getElementById('createUserForm').style.display = 'block';
+    document.getElementById('userForm').reset();
+    document.getElementById('userFormError').textContent = '';
+    document.getElementById('userFormSuccess').textContent = '';
+}
+
+// Hide Create User Form
+function hideCreateUserForm() {
+    document.getElementById('createUserForm').style.display = 'none';
+    document.getElementById('userForm').reset();
+}
+
+// Toggle Technician Type Field
+function toggleTechnicianType() {
+    const role = document.getElementById('newUserRole').value;
+    const techTypeGroup = document.getElementById('technicianTypeGroup');
+    techTypeGroup.style.display = role === 'technician' ? 'block' : 'none';
+}
+
+// Load All Users
+async function loadAllUsers() {
+    try {
+        const response = await apiRequest('/auth/users');
+        
+        if (response && response.ok) {
+            const users = await response.json();
+            renderUsersList(users);
+        } else {
+            showError('Failed to load users');
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+        document.getElementById('usersList').innerHTML = '<p style="color: red; text-align: center;">Error loading users</p>';
+    }
+}
+
+// Render Users List
+function renderUsersList(users) {
+    const usersList = document.getElementById('usersList');
+    
+    if (users.length === 0) {
+        usersList.innerHTML = '<p style="color: #999; text-align: center;">No users found</p>';
+        return;
+    }
+    
+    const roleColors = {
+        'admin': '#f44336',
+        'technician': '#ff9800',
+        'helpdesk_officer': '#4caf50',
+        'ict_manager': '#2196f3',
+        'ict_gm': '#9c27b0'
+    };
+    
+    usersList.innerHTML = users.map(user => `
+        <div style="background: white; border: 1px solid #e0e0e0; border-left: 4px solid ${roleColors[user.role] || '#666'}; padding: 15px; border-radius: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: start;">
+                <div style="flex: 1;">
+                    <h3 style="margin: 0 0 8px 0; font-size: 16px;">${user.name}</h3>
+                    <p style="margin: 4px 0; color: #666; font-size: 14px;">📧 ${user.email}</p>
+                    ${user.phone ? `<p style="margin: 4px 0; color: #666; font-size: 14px;">📞 ${user.phone}</p>` : ''}
+                    <span style="display: inline-block; margin-top: 8px; padding: 4px 12px; background: ${roleColors[user.role] || '#666'}; color: white; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                        ${user.role.replace('_', ' ').toUpperCase()}
+                    </span>
+                    ${user.technician_type ? `<span style="display: inline-block; margin-top: 8px; margin-left: 8px; padding: 4px 12px; background: #e0e0e0; color: #333; border-radius: 12px; font-size: 12px;">
+                        ${user.technician_type}
+                    </span>` : ''}
+                </div>
+                <button onclick="deleteUser(${user.id}, '${user.name}')" style="background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                    Delete
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Create New User
+async function createUser(event) {
+    event.preventDefault();
+    
+    const userData = {
+        name: document.getElementById('newUserName').value,
+        email: document.getElementById('newUserEmail').value,
+        phone: document.getElementById('newUserPhone').value || null,
+        password: document.getElementById('newUserPassword').value,
+        role: document.getElementById('newUserRole').value,
+        technician_type: document.getElementById('newUserRole').value === 'technician' 
+            ? document.getElementById('newUserTechType').value || null 
+            : null
+    };
+    
+    try {
+        const response = await apiRequest('/auth/register', {
+            method: 'POST',
+            body: JSON.stringify(userData)
+        });
+        
+        if (response && response.ok) {
+            const newUser = await response.json();
+            document.getElementById('userFormSuccess').textContent = `User created successfully!`;
+            document.getElementById('userFormError').textContent = '';
+            document.getElementById('userForm').reset();
+            loadAllUsers();
+            
+            // Hide form after 2 seconds
+            setTimeout(() => {
+                hideCreateUserForm();
+            }, 2000);
+        } else {
+            const error = await response.json();
+            document.getElementById('userFormError').textContent = error.detail || 'Failed to create user';
+            document.getElementById('userFormSuccess').textContent = '';
+        }
+    } catch (error) {
+        console.error('Error creating user:', error);
+        document.getElementById('userFormError').textContent = 'Error creating user';
+        document.getElementById('userFormSuccess').textContent = '';
+    }
+}
+
+// Delete User
+async function deleteUser(userId, userName) {
+    if (!confirm(`Are you sure you want to delete user "${userName}"?`)) {
+        return;
+    }
+    
+    try {
+        const response = await apiRequest(`/auth/users/${userId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response && response.ok) {
+            showSuccess(`User "${userName}" deleted successfully`);
+            loadAllUsers();
+            loadTechnicians(); // Refresh technician list
+        } else {
+            const error = await response.json();
+            showError(error.detail || 'Failed to delete user');
+        }
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        showError('Error deleting user');
+    }
 }
