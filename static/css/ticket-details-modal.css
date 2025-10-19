@@ -1,4 +1,4 @@
-/* Ticket Details Modal Enhancements */
+/* Ticket Details Modal - Clean Professional Light Theme */
 .ticket-info-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -7,70 +7,125 @@
 }
 
 .info-section {
-    background: #f8f9fa;
-    padding: 15px;
+    background: white;
+    padding: 20px;
     border-radius: 8px;
     margin-bottom: 15px;
+    border: 1px solid #e0e0e0;
 }
 
 .info-section h3 {
-    margin: 0 0 10px 0;
-    color: #2c3e50;
-    font-size: 16px;
-    border-bottom: 2px solid #3498db;
-    padding-bottom: 5px;
+    margin: 0 0 12px 0;
+    color: #333;
+    font-size: 14px;
+    border-bottom: 2px solid #29B6F6;
+    padding-bottom: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .info-section p {
     margin: 8px 0;
     color: #555;
+    font-size: 14px;
 }
 
 .status-badge, .priority-badge {
     padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
     display: inline-block;
+    border: 1px solid transparent;
 }
 
-.status-badge.open { background: #e3f2fd; color: #1976d2; }
-.status-badge.in-progress { background: #fff3e0; color: #f57c00; }
-.status-badge.resolved { background: #e8f5e9; color: #388e3c; }
-.status-badge.closed { background: #f3e5f5; color: #7b1fa2; }
+.status-badge.open { 
+    background: #e3f2fd; 
+    color: #1976d2; 
+    border-color: #bbdefb;
+}
+.status-badge.in-progress { 
+    background: #fff3e0; 
+    color: #f57c00;
+    border-color: #ffe0b2;
+}
+.status-badge.resolved { 
+    background: #e8f5e9; 
+    color: #388e3c;
+    border-color: #c8e6c9;
+}
+.status-badge.closed { 
+    background: #f3e5f5; 
+    color: #7b1fa2;
+    border-color: #e1bee7;
+}
 
-.priority-badge.urgent { background: #ffebee; color: #c62828; }
-.priority-badge.high { background: #fff3e0; color: #e65100; }
-.priority-badge.normal { background: #e3f2fd; color: #1565c0; }
+.priority-badge.urgent { 
+    background: #ffebee; 
+    color: #c62828;
+    border-color: #ffcdd2;
+}
+.priority-badge.high { 
+    background: #fff3e0; 
+    color: #e65100;
+    border-color: #ffe0b2;
+}
+.priority-badge.normal { 
+    background: #e3f2fd; 
+    color: #1565c0;
+    border-color: #bbdefb;
+}
 
 .ticket-progress {
     max-height: 300px;
     overflow-y: auto;
 }
 
+/* Custom Scrollbar for Progress */
+.ticket-progress::-webkit-scrollbar {
+    width: 6px;
+}
+
+.ticket-progress::-webkit-scrollbar-track {
+    background: #f5f5f5;
+}
+
+.ticket-progress::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 3px;
+}
+
+.ticket-progress::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+}
+
 .progress-item {
-    padding: 12px;
+    padding: 14px;
     background: white;
-    border-left: 3px solid #3498db;
+    border-left: 3px solid #29B6F6;
     margin-bottom: 10px;
     border-radius: 4px;
+    border: 1px solid #e0e0e0;
 }
 
 .progress-time {
-    font-size: 11px;
-    color: #7f8c8d;
-    margin-bottom: 4px;
+    font-size: 13px;
+    color: #0066cc !important;
+    margin-bottom: 6px;
+    font-weight: 600 !important;
 }
 
 .progress-action {
-    font-weight: 600;
-    color: #2c3e50;
-    margin-bottom: 4px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 6px;
+    font-size: 13px;
 }
 
 .progress-details {
     font-size: 13px;
-    color: #555;
+    color: #666;
 }
 
 .modal-overlay.active {

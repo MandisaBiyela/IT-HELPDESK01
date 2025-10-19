@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Ndabase IT Helpdesk</title>
-        <link rel="stylesheet" href="/static/css/style.css?v=8.5">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css?v=8.5">
 </head>
 <body>
     <div id="app">
@@ -35,7 +36,7 @@
                             <label for="password">Password</label>
                             <div class="input-with-icon password-field">
                                 <input type="password" id="password" name="password" required>
-                                <span class="password-toggle" onclick="togglePassword('password')">👁️</span>
+                                <span class="password-toggle" onclick="togglePassword('password')"><i class="far fa-eye"></i></span>
                             </div>
                         </div>
                         
@@ -110,7 +111,7 @@
                                 <div class="select-wrapper">
                                     <select id="signupRole" required>
                                         <option value="">Select your role</option>
-                                        <option value="ict_gm">ICT GM (Executive)</option>
+                                        <option value="ict_gm">Senior Technician</option>
                                         <option value="ict_manager">ICT Manager</option>
                                         <option value="helpdesk_officer">Helpdesk Officer</option>
                                         <option value="technician">Technician</option>
@@ -122,7 +123,7 @@
                                 <label for="signupPassword">Password</label>
                                 <div class="input-with-icon password-field">
                                     <input type="password" id="signupPassword" required placeholder="●●●●●●">
-                                    <span class="password-toggle" onclick="togglePassword('signupPassword')">👁️</span>
+                                    <span class="password-toggle" onclick="togglePassword('signupPassword')"><i class="far fa-eye"></i></span>
                                 </div>
                             </div>
                             
@@ -130,7 +131,7 @@
                                 <label for="signupPasswordConfirm">Confirm Password</label>
                                 <div class="input-with-icon password-field">
                                     <input type="password" id="signupPasswordConfirm" required placeholder="●●●●●●">
-                                    <span class="password-toggle" onclick="togglePassword('signupPasswordConfirm')">👁️</span>
+                                    <span class="password-toggle" onclick="togglePassword('signupPasswordConfirm')"><i class="far fa-eye"></i></span>
                                 </div>
                             </div>
 
@@ -155,7 +156,7 @@
             <nav class="navbar">
                 <div class="nav-brand">
                     <span class="nav-logo-icon"></span>
-                    <span class="nav-logo-text">ndabase</span> IT Helpdesk
+                    <span class="nav-logo-text">ndabase</span> IT Solution
                 </div>
                 <div class="nav-menu">
                     <a href="#" class="nav-link active" data-page="reports">Reports</a>
@@ -206,13 +207,13 @@
             
             if (field.type === 'password') {
                 field.type = 'text';
-                toggleBtn.textContent = '🙈'; // Eye closed
+                toggleBtn.innerHTML = '<i class="far fa-eye-slash"></i>'; // Eye closed
             } else {
                 field.type = 'password';
-                toggleBtn.textContent = '👁️'; // Eye open
+                toggleBtn.innerHTML = '<i class="far fa-eye"></i>'; // Eye open
             }
         }
     </script>
-    <script src="/static/js/app.js?v=7.0"></script>
+    <script src="/static/js/app.js?v=7.1"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-// ICT GM Reports - Real-time Analytics with Auto-Refresh
+// Senior Technician Reports - Real-time Analytics with Auto-Refresh
 const API_BASE = 'http://localhost:8000/api';
 let currentFilters = { date_from: null, date_to: null, status: '', priority: '' };
 let allTickets = [];
@@ -23,11 +23,11 @@ function checkAuth() {
     }
     const userRole = localStorage.getItem('user_role');
     if (userRole !== 'ict_gm') {
-        alert('Access denied. This page is for ICT General Managers only.');
+        alert('Access denied. This page is for Senior Technicians only.');
         window.location.href = '/static/index.html';
         return;
     }
-    document.getElementById('userName').textContent = localStorage.getItem('user_name') || 'ICT GM';
+    document.getElementById('userName').textContent = localStorage.getItem('user_name') || 'Senior Technician';
 }
 
 function logout() {

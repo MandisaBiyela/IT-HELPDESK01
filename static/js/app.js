@@ -236,7 +236,7 @@ async function loadDashboard() {
                 window.location.href = '/static/ict-manager.html';
                 break;
             case 'ict_gm':
-                console.log('Redirecting to ICT GM dashboard...');
+                console.log('Redirecting to Senior Technician dashboard...');
                 window.location.href = '/static/ict-gm.html';
                 break;
             case 'admin':
@@ -245,7 +245,10 @@ async function loadDashboard() {
                 handleLogout();
                 break;
             default:
-                throw new Error('Unknown user role: ' + currentUser.role);
+                // Regular users go to user dashboard
+                console.log('Redirecting to user dashboard...');
+                window.location.href = '/static/user-dashboard.html';
+                break;
         }
     } catch (error) {
         console.error('Failed to load dashboard:', error);

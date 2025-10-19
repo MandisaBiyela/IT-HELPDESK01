@@ -8,10 +8,15 @@ def generate_ticket_number(last_id: int) -> str:
     return f"NDB-{last_id + 1:04d}"
 
 
+def get_current_time() -> datetime:
+    """Get current time (timezone-naive for consistency)"""
+    return datetime.now()
+
+
 def calculate_sla_deadline(priority: TicketPriority, created_at: datetime = None) -> datetime:
     """Calculate SLA deadline based on priority"""
     if created_at is None:
-        created_at = datetime.utcnow()
+        created_at = get_current_time()
     
     if priority == TicketPriority.URGENT:
         minutes = settings.SLA_URGENT_MINUTES
@@ -25,13 +30,13 @@ def calculate_sla_deadline(priority: TicketPriority, created_at: datetime = None
 
 def is_sla_breached(sla_deadline: datetime) -> bool:
     """Check if SLA has been breached"""
-    return datetime.utcnow() > sla_deadline
+    return get_current_time() > sla_deadline
 
 
 def is_sla_warning(sla_deadline: datetime) -> bool:
     """Check if we're in SLA warning period (2 minutes before breach)"""
     warning_time = sla_deadline - timedelta(minutes=settings.SLA_WARNING_MINUTES)
-    now = datetime.utcnow()
+    now = get_current_time()
     return warning_time <= now < sla_deadline
 
 

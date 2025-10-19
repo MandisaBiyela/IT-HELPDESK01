@@ -5,24 +5,34 @@
 }
 
 :root {
-    /* Ndabase brand colors */
-    /* Primary palette (updated to requested navy + orange accent) */
-    --primary-navy: #2c5187; /* deep navy header */
-    --primary-blue: #2c5187;
-    --primary-orange: #ff8a2b; /* CTA orange */
-    --dark-blue: #1f3b6a;
-    --light-blue: #eaf4fb;
-    --text-dark: #333;
-    --text-light: #666;
-    --success: #4caf50;
-    --warning: #f39c12;
+    /* Ndabase Brand Colors - Light Blue Theme */
+    --ndabase-blue: #29B6F6;
+    --ndabase-gray: #999999;
+    --ndabase-dark-blue: #039BE5;
+    --ndabase-light-blue: #E1F5FE;
+    
+    /* Primary brand colors (using Ndabase colors) */
+    --primary-navy: #29B6F6;
+    --primary-blue: #29B6F6;
+    --primary-orange: #29B6F6;
+    --dark-blue: #039BE5;
+    --light-blue: #E1F5FE;
+    
+    /* UI colors - Light Mode */
+    --text-dark: #333333;
+    --text-light: #666666;
+    --success: #29B6F6;
+    --warning: #ff9800;
     --danger: #d32f2f;
     --background: #f5f5f5;
+    --card-bg: #ffffff;
+    --border-color: #e0e0e0;
+    --modal-bg: #ffffff;
 
     /* Accent and UI tokens */
-    --cta-bg: var(--primary-orange);
-    --header-gradient-start: var(--primary-blue);
-    --header-gradient-end: var(--dark-blue);
+    --cta-bg: var(--ndabase-blue);
+    --header-gradient-start: var(--ndabase-blue);
+    --header-gradient-end: var(--ndabase-dark-blue);
 }
 
 body {
@@ -552,6 +562,22 @@ body {
     font-weight: bold;
 }
 
+.nav-brand h1 {
+    text-transform: uppercase;
+    margin: 0;
+    font-size: 1.5rem;
+    line-height: 1.2;
+}
+
+.nav-subtitle {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.85);
+    margin-top: 2px;
+    text-transform: none;
+}
+
 .nav-menu {
     display: flex;
     gap: 20px;
@@ -605,15 +631,16 @@ body {
     padding: 2px 4px;
     border-radius: 4px;
     font-weight: 700;
+    text-transform: uppercase;
 }
 
 .logo-segment.blue {
-    background: var(--primary-blue);
+    background: transparent;
     color: white;
 }
 
 .logo-segment.orange {
-    background: var(--primary-orange);
+    background: transparent;
     color: white;
 }
 
@@ -621,6 +648,7 @@ body {
     color: white;
     margin-left: 5px;
     font-size: 18px;
+    text-transform: uppercase;
 }
 
 .header-right {
@@ -1747,4 +1775,43 @@ body {
     font-size: 12px;
     margin-left: 8px;
     text-transform: capitalize;
+}
+
+/* ===== ICT GM ESCALATIONS - PAUSED TICKETS ===== */
+.status-badge.paused {
+    background: #ecf0f1;
+    color: #7f8c8d;
+    border: 1px solid #bdc3c7;
+}
+
+.status-badge.overdue {
+    background: #fee;
+    color: #c00;
+    font-weight: 600;
+}
+
+.status-badge.update-required {
+    background: #fff3e0;
+    color: #f57c00;
+    font-weight: 600;
+}
+
+.escalation-row.paused-ticket {
+    background: #f8f9fa;
+    border-left: 4px solid #95a5a6;
+}
+
+.escalation-row.paused-ticket:hover {
+    background: #e9ecef;
+}
+
+.escalations-section {
+    margin-bottom: 20px;
+}
+
+.escalations-section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 10px;
 }

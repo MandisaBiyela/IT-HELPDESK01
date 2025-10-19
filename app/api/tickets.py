@@ -2,8 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from pydantic import BaseModel
+import logging
 from app.database import get_db
 from app.models.user import User
 from app.models.ticket import Ticket, TicketUpdate, TicketStatus, TicketPriority
@@ -19,6 +20,8 @@ from app.utils.auth import get_current_active_user, require_role
 from app.utils.ticket_helpers import generate_ticket_number, calculate_sla_deadline
 from app.services.email_service import EmailService
 from app.services.whatsapp_service import whatsapp_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/tickets", tags=["Tickets"])
 
@@ -57,8 +60,24 @@ async def create_ticket(
     db.commit()
     db.refresh(new_ticket)
     
-    # Prepare notification data
+    # Get assignee information FIRST
     assignee = db.query(User).filter(User.id == ticket_data.assignee_id).first()
+    assignee_name = assignee.name if assignee else 'Unassigned'
+    
+    # Create initial ticket update for history tracking
+    from app.models.ticket import TicketUpdate
+    initial_update = TicketUpdate(
+        ticket_id=new_ticket.id,
+        update_text=f"Ticket created and assigned to {assignee_name}",
+        updated_by_id=current_user.id,
+        new_status=TicketStatus.OPEN.value,
+        new_priority=new_ticket.priority.value,
+        new_assignee_id=new_ticket.assignee_id
+    )
+    db.add(initial_update)
+    db.commit()
+    
+    # Prepare notification data
     notification_data = {
         'ticket_number': new_ticket.ticket_number,
         'user_name': new_ticket.user_name,
@@ -251,14 +270,37 @@ async def update_ticket(
     
     changes_made = False
     
+    # Track if status is changing TO or FROM "Waiting on User" (for SLA pause/resume)
+    was_waiting = (ticket.status == TicketStatus.WAITING_ON_USER)
+    will_be_waiting = (update_data.status == TicketStatus.WAITING_ON_USER if update_data.status else False)
+    
     # Update status
     if update_data.status and update_data.status != ticket.status:
+        old_sla_deadline = ticket.sla_deadline
         ticket.status = update_data.status
         changes_made = True
         
         # If resolved, set resolved_at
         if update_data.status == TicketStatus.RESOLVED:
             ticket.resolved_at = datetime.utcnow()
+        
+        # ✅ SLA PAUSE: Moving TO "Waiting on User" - Store time remaining
+        if will_be_waiting and not was_waiting:
+            time_remaining_minutes = (ticket.sla_deadline - datetime.now()).total_seconds() / 60
+            ticket.sla_paused_minutes = int(max(0, time_remaining_minutes))  # Store remaining time
+            logger.info(f"⏸️ SLA PAUSED for {ticket.ticket_number} - {ticket.sla_paused_minutes} minutes remaining")
+        
+        # ✅ SLA RESUME: Moving FROM "Waiting on User" back to active status
+        if was_waiting and not will_be_waiting:
+            # Restore SLA deadline by adding back the paused time
+            if ticket.sla_paused_minutes and ticket.sla_paused_minutes > 0:
+                ticket.sla_deadline = datetime.now() + timedelta(minutes=ticket.sla_paused_minutes)
+                logger.info(f"▶️ SLA RESUMED for {ticket.ticket_number} - {ticket.sla_paused_minutes} minutes restored")
+                ticket.sla_paused_minutes = 0  # Clear paused time
+            else:
+                # No paused time stored, recalculate from priority
+                ticket.sla_deadline = calculate_sla_deadline(ticket.priority, datetime.now())
+                logger.warning(f"⚠️ No paused time found for {ticket.ticket_number}, recalculated SLA")
     
     # Update priority
     if update_data.priority and update_data.priority != ticket.priority:
@@ -706,4 +748,60 @@ async def delete_ticket(
         "success": True,
         "message": f"Ticket {ticket_number} deleted successfully"
     }
+
+
+# ============ USER SELF-SERVICE ENDPOINTS ============
+
+@router.post("/create-my-ticket", response_model=TicketResponse, status_code=status.HTTP_201_CREATED)
+async def create_my_ticket(
+    ticket_data: TicketCreate,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Allow any authenticated user to create a ticket for themselves"""
+    # Generate ticket number
+    last_ticket = db.query(Ticket).order_by(Ticket.id.desc()).first()
+    last_id = last_ticket.id if last_ticket else 0
+    ticket_number = generate_ticket_number(last_id)
+    
+    # Calculate SLA deadline
+    sla_deadline = calculate_sla_deadline(ticket_data.priority)
+    
+    # Create ticket using current user's information
+    new_ticket = Ticket(
+        ticket_number=ticket_number,
+        user_name=current_user.name,
+        user_email=current_user.email,
+        user_phone=current_user.phone or ticket_data.user_phone,
+        problem_summary=ticket_data.problem_summary,
+        problem_description=ticket_data.problem_description,
+        priority=ticket_data.priority,
+        status=TicketStatus.OPEN,
+        sla_deadline=sla_deadline,
+        reported_by_id=current_user.id,
+        created_at=get_sa_time(),
+        updated_at=get_sa_time()
+    )
+    
+    db.add(new_ticket)
+    db.commit()
+    db.refresh(new_ticket)
+    
+    logger.info(f"User {current_user.name} created ticket {ticket_number}")
+    
+    return new_ticket
+
+
+@router.get("/my-tickets", response_model=List[TicketResponse])
+async def get_my_tickets(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get all tickets created by the current user"""
+    tickets = db.query(Ticket).filter(
+        Ticket.reported_by_id == current_user.id
+    ).order_by(Ticket.created_at.desc()).all()
+    
+    return tickets
 

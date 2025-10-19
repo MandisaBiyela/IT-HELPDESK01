@@ -309,17 +309,19 @@ function createTicketCard(ticket) {
         </div>
         <div class="ticket-summary">${problemSummary}</div>
         <div class="ticket-meta">
-            <span>👤 ${userName}</span>
-            <span>📧 ${userEmail}</span>
-            <span>🕒 ${timeAgo}</span>
+            <span><i class="fas fa-user"></i> ${userName}</span>
+            <span><i class="fas fa-envelope"></i> ${userEmail}</span>
+            <span><i class="fas fa-clock"></i> ${timeAgo}</span>
         </div>
         <div class="ticket-meta">
             <span>Priority: ${ticket.priority}</span>
             <span>Status: ${ticket.status}</span>
             <span>Assigned to: ${assigneeName}</span>
         </div>
-        <div class="ticket-actions">
-            <button class="view-btn" onclick="viewTicket(${ticket.id})">View Details</button>
+        <div class="ticket-actions" style="display: flex; gap: 8px;">
+            <button class="view-btn" onclick="viewTicket(${ticket.id})" style="flex: 1;"><i class="fas fa-eye"></i> View</button>
+            <button class="edit-btn" onclick="editTicket(${ticket.id})" style="flex: 1; background: #2196f3; color: white; border: none; padding: 8px; border-radius: 4px; cursor: pointer; font-size: 13px;"><i class="fas fa-edit"></i> Edit</button>
+            <button class="delete-btn" onclick="deleteTicket(${ticket.id})" style="background: #f44336; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;"><i class="fas fa-trash"></i> Delete</button>
         </div>
     `;
     
@@ -348,18 +350,18 @@ function getSLAInfo(ticket) {
     } else if (minutesRemaining <= 2) {
         return {
             class: 'sla-at-risk',
-            text: `⏰ ${minutesRemaining}m remaining`
+            text: `<i class="fas fa-exclamation-triangle"></i> ${minutesRemaining}m remaining`
         };
     } else if (minutesRemaining < 60) {
         return {
             class: 'sla-on-track',
-            text: `✓ ${minutesRemaining}m remaining`
+            text: `<i class="fas fa-check-circle"></i> ${minutesRemaining}m remaining`
         };
     } else {
         const hoursRemaining = Math.floor(minutesRemaining / 60);
         return {
             class: 'sla-on-track',
-            text: `✓ ${hoursRemaining}h ${minutesRemaining % 60}m`
+            text: `<i class="fas fa-check-circle"></i> ${hoursRemaining}h ${minutesRemaining % 60}m`
         };
     }
 }
@@ -446,28 +448,53 @@ async function viewTicket(ticketId) {
     // Fetch ticket history/updates for progress
     let ticketUpdates = [];
     try {
-        const response = await apiRequest(`/tickets/${ticket.ticket_number}/history`);
+        const response = await apiRequest(`/tickets/${ticket.ticket_number}/updates`);
         if (response && response.ok) {
             ticketUpdates = await response.json();
         }
     } catch (error) {
-        console.error('Error fetching ticket history:', error);
+        console.error('Error fetching ticket updates:', error);
     }
 
     // Build progress timeline
     let progressHTML = '<div class="ticket-progress">';
     if (ticketUpdates && ticketUpdates.length > 0) {
         ticketUpdates.forEach(update => {
+            // Build action description from update data
+            let actionText = '';
+            const changes = [];
+            
+            if (update.old_status && update.new_status && update.old_status !== update.new_status) {
+                changes.push(`Status changed from <strong>${update.old_status}</strong> to <strong>${update.new_status}</strong>`);
+            }
+            
+            if (update.old_priority && update.new_priority && update.old_priority !== update.new_priority) {
+                changes.push(`Priority changed from <strong>${update.old_priority}</strong> to <strong>${update.new_priority}</strong>`);
+            }
+            
+            if (update.old_assignee_id && update.new_assignee_id && update.old_assignee_id !== update.new_assignee_id) {
+                changes.push(`Ticket reassigned`);
+            }
+            
+            if (update.reassign_reason) {
+                changes.push(`Reason: ${update.reassign_reason}`);
+            }
+            
+            actionText = changes.length > 0 ? changes.join('<br>') : 'Update added';
+            
             progressHTML += `
-                <div class="progress-item">
-                    <div class="progress-time">${new Date(update.created_at).toLocaleString()}</div>
-                    <div class="progress-action">${update.action}</div>
-                    <div class="progress-details">${update.details || ''}</div>
+                <div class="progress-item" style="margin-bottom: 15px; padding: 12px; background: #f9f9f9; border-left: 3px solid #2196f3; border-radius: 4px;">
+                    <div class="progress-time" style="font-size: 13px; color: #0066cc !important; margin-bottom: 4px; font-weight: 600;">
+                        <i class="fas fa-calendar-alt"></i> ${new Date(update.created_at).toLocaleString()} by ${update.updated_by_name}
+                    </div>
+                    <div class="progress-action" style="margin-bottom: 6px;">${actionText}</div>
+                    ${update.update_text ? `<div class="progress-details" style="font-size: 13px; color: #444; margin-top: 6px; padding: 8px; background: white; border-radius: 3px;"><i class="fas fa-comment"></i> ${update.update_text}</div>` : ''}
+                    ${update.time_spent ? `<div style="font-size: 12px; color: #666; margin-top: 4px;"><i class="fas fa-stopwatch"></i> Time spent: ${update.time_spent} minutes</div>` : ''}
                 </div>
             `;
         });
     } else {
-        progressHTML += `<div class="progress-item">No update history available</div>`;
+        progressHTML += `<div class="progress-item" style="padding: 20px; text-align: center; color: #999;"><i class="fas fa-clipboard-list"></i> No updates yet - Ticket just created</div>`;
     }
     progressHTML += '</div>';
 
@@ -575,7 +602,10 @@ async function createTicket(event) {
             loadTickets();
         } else {
             const error = await response.json();
-            showError(error.detail || 'Failed to create ticket');
+            const errorMessage = typeof error.detail === 'string' 
+                ? error.detail 
+                : error.detail?.message || error.message || 'Failed to create ticket';
+            showError(errorMessage);
         }
     } catch (error) {
         console.error('Error creating ticket:', error);
@@ -673,8 +703,8 @@ function renderUsersList(users) {
             <div style="display: flex; justify-content: space-between; align-items: start;">
                 <div style="flex: 1;">
                     <h3 style="margin: 0 0 8px 0; font-size: 16px;">${user.name}</h3>
-                    <p style="margin: 4px 0; color: #666; font-size: 14px;">📧 ${user.email}</p>
-                    ${user.phone ? `<p style="margin: 4px 0; color: #666; font-size: 14px;">📞 ${user.phone}</p>` : ''}
+                    <p style="margin: 4px 0; color: #666; font-size: 14px;"><i class="fas fa-envelope"></i> ${user.email}</p>
+                    ${user.phone ? `<p style="margin: 4px 0; color: #666; font-size: 14px;"><i class="fas fa-phone"></i> ${user.phone}</p>` : ''}
                     <span style="display: inline-block; margin-top: 8px; padding: 4px 12px; background: ${roleColors[user.role] || '#666'}; color: white; border-radius: 12px; font-size: 12px; font-weight: 600;">
                         ${user.role.replace('_', ' ').toUpperCase()}
                     </span>
@@ -683,7 +713,7 @@ function renderUsersList(users) {
                     </span>` : ''}
                 </div>
                 <button onclick="deleteUser(${user.id}, '${user.name}')" style="background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
-                    Delete
+                    <i class="fas fa-trash"></i> Delete
                 </button>
             </div>
         </div>
@@ -751,10 +781,127 @@ async function deleteUser(userId, userName) {
             loadTechnicians(); // Refresh technician list
         } else {
             const error = await response.json();
-            showError(error.detail || 'Failed to delete user');
+            const errorMessage = typeof error.detail === 'string' 
+                ? error.detail 
+                : error.detail?.message || error.message || 'Failed to delete user';
+            showError(errorMessage);
         }
     } catch (error) {
         console.error('Error deleting user:', error);
         showError('Error deleting user');
     }
+}
+
+// ==================== TICKET CRUD OPERATIONS ====================
+
+// Edit Ticket - Opens modal with ticket data
+function editTicket(ticketId) {
+    const ticket = allTickets.find(t => t.id === ticketId);
+    if (!ticket) {
+        showError('Ticket not found');
+        return;
+    }
+    
+    // Populate assignee dropdown for edit modal
+    const editAssigneeSelect = document.getElementById('editAssignee');
+    editAssigneeSelect.innerHTML = '<option value="">Select Technician...</option>';
+    allTechnicians.forEach(tech => {
+        const option = document.createElement('option');
+        option.value = tech.id;
+        option.textContent = `${tech.name}${tech.technician_type ? ' (' + tech.technician_type + ')' : ''}`;
+        editAssigneeSelect.appendChild(option);
+    });
+    
+    // Populate edit modal with ticket data
+    document.getElementById('editTicketId').value = ticket.id;
+    document.getElementById('editTicketNumber').value = ticket.ticket_number;
+    document.getElementById('editUserName').value = ticket.user_name;
+    document.getElementById('editUserEmail').value = ticket.user_email;
+    document.getElementById('editUserPhone').value = ticket.user_phone;
+    document.getElementById('editProblemSummary').value = ticket.problem_summary;
+    document.getElementById('editProblemDescription').value = ticket.problem_description || '';
+    document.getElementById('editPriority').value = ticket.priority;
+    document.getElementById('editAssignee').value = ticket.assignee_id || '';
+    document.getElementById('editStatus').value = ticket.status;
+    
+    // Show modal
+    document.getElementById('editTicketModal').classList.add('active');
+}
+
+// Update Ticket - Submit the changes
+async function updateTicket(event) {
+    event.preventDefault();
+    
+    const ticketNumber = document.getElementById('editTicketNumber').value;
+    
+    const updateData = {
+        user_name: document.getElementById('editUserName').value,
+        user_email: document.getElementById('editUserEmail').value,
+        user_phone: document.getElementById('editUserPhone').value,
+        problem_summary: document.getElementById('editProblemSummary').value,
+        problem_description: document.getElementById('editProblemDescription').value,
+        priority: document.getElementById('editPriority').value,
+        assignee_id: parseInt(document.getElementById('editAssignee').value),
+        status: document.getElementById('editStatus').value
+    };
+    
+    try {
+        const response = await apiRequest(`/tickets/${ticketNumber}`, {
+            method: 'PATCH',
+            body: JSON.stringify(updateData)
+        });
+        
+        if (response && response.ok) {
+            showSuccess('Ticket updated successfully!');
+            closeEditModal();
+            loadTickets();
+        } else {
+            const error = await response.json();
+            const errorMessage = typeof error.detail === 'string' 
+                ? error.detail 
+                : error.detail?.message || error.message || 'Failed to update ticket';
+            showError(errorMessage);
+        }
+    } catch (error) {
+        console.error('Error updating ticket:', error);
+        showError('Error updating ticket');
+    }
+}
+
+// Delete Ticket
+async function deleteTicket(ticketId) {
+    const ticket = allTickets.find(t => t.id === ticketId);
+    if (!ticket) {
+        showError('Ticket not found');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ticket ${ticket.ticket_number}?\n\nUser: ${ticket.user_name}\nProblem: ${ticket.problem_summary}\n\nThis action cannot be undone!`)) {
+        return;
+    }
+    
+    try {
+        const response = await apiRequest(`/tickets/${ticket.ticket_number}`, {
+            method: 'DELETE'
+        });
+        
+        if (response && response.ok) {
+            showSuccess(`Ticket ${ticket.ticket_number} deleted successfully!`);
+            loadTickets();
+        } else {
+            const error = await response.json();
+            const errorMessage = typeof error.detail === 'string' 
+                ? error.detail 
+                : error.detail?.message || error.message || 'Failed to delete ticket';
+            showError(errorMessage);
+        }
+    } catch (error) {
+        console.error('Error deleting ticket:', error);
+        showError('Error deleting ticket');
+    }
+}
+
+// Close Edit Modal
+function closeEditModal() {
+    document.getElementById('editTicketModal').classList.remove('active');
 }

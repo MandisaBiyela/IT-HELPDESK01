@@ -4,30 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Helpdesk Officer Dashboard - Ndabase IT Helpdesk</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/ticket-details-modal.css">
+    <link rel="stylesheet" href="/static/css/ticket-details-modal.css?v=7.0">
     <link rel="stylesheet" href="/static/css/profile.css">
     <style>
-        /* Helpdesk Officer Specific Styles */
+        /* Light Theme - Baby Blue and White */
+        body {
+            background: #f5f7fa;
+            color: #333;
+        }
+
         .helpdesk-layout {
             display: grid;
-            grid-template-columns: 1fr 300px;
+            grid-template-columns: 1fr 320px;
             gap: 20px;
             padding: 20px;
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
         }
 
         .main-panel {
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border: 1px solid #e0e0e0;
         }
 
         .sidebar-panel {
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border: 1px solid #e0e0e0;
             padding: 20px;
             height: fit-content;
             position: sticky;
@@ -45,40 +53,47 @@
 
         .filter-btn {
             padding: 8px 16px;
-            border: 1px solid #ddd;
+            border: 1px solid #d0d0d0;
             background: white;
-            border-radius: 20px;
+            border-radius: 6px;
             cursor: pointer;
             transition: all 0.3s;
+            color: #666;
+            font-size: 13px;
         }
 
         .filter-btn:hover {
-            background: #f5f5f5;
+            background: #f5f7fa;
+            color: #333;
+            border-color: #29B6F6;
         }
 
         .filter-btn.active {
-            background: var(--primary-blue);
+            background: #29B6F6;
             color: white;
-            border-color: var(--primary-blue);
+            border-color: #29B6F6;
         }
 
         .create-ticket-btn {
-            background: var(--primary-orange);
+            background: #29B6F6;
             color: white;
-            padding: 12px 24px;
+            padding: 10px 20px;
             border: none;
             border-radius: 6px;
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
             margin-left: auto;
             display: flex;
             align-items: center;
             gap: 8px;
+            transition: all 0.3s;
         }
 
         .create-ticket-btn:hover {
-            background: #e57a35;
+            background: #039BE5;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(41, 182, 246, 0.3);
         }
 
         .ticket-list {
@@ -87,69 +102,95 @@
             overflow-y: auto;
         }
 
+        /* Custom Scrollbar */
+        .ticket-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .ticket-list::-webkit-scrollbar-track {
+            background: #f5f5f5;
+        }
+
+        .ticket-list::-webkit-scrollbar-thumb {
+            background: #d0d0d0;
+            border-radius: 3px;
+        }
+
+        .ticket-list::-webkit-scrollbar-thumb:hover {
+            background: #bbb;
+        }
+
         .ticket-card {
-            background: #f9f9f9;
-            border-left: 4px solid #ddd;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 4px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 12px;
             cursor: pointer;
             transition: all 0.3s;
         }
 
         .ticket-card:hover {
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            background: #f8f9fa;
+            border-color: #29B6F6;
             transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         }
 
         .ticket-card.urgent {
-            border-left-color: #e53935;
-            background: #fff5f5;
+            border-left: 3px solid #ef4444;
         }
 
         .ticket-card.high {
-            border-left-color: #ff9800;
-            background: #fff8f0;
+            border-left: 3px solid #f59e0b;
         }
 
         .ticket-card.normal {
-            border-left-color: #4caf50;
+            border-left: 3px solid #29B6F6;
         }
 
         .ticket-header {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
         }
 
         .ticket-number {
-            font-weight: 700;
-            font-size: 14px;
-            color: var(--primary-blue);
+            font-weight: 600;
+            font-size: 12px;
+            color: #666;
+            background: #f5f7fa;
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid #e0e0e0;
         }
 
         .sla-badge {
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            border: 1px solid transparent;
         }
 
         .sla-on-track {
             background: #e8f5e9;
             color: #2e7d32;
+            border-color: #c8e6c9;
         }
 
         .sla-at-risk {
             background: #fff3e0;
             color: #ef6c00;
+            border-color: #ffe0b2;
         }
 
         .sla-breached {
             background: #ffebee;
             color: #c62828;
-            animation: pulse 1.5s infinite;
+            border-color: #ffcdd2;
+            animation: pulse 2s infinite;
         }
 
         @keyframes pulse {
@@ -158,115 +199,134 @@
         }
 
         .ticket-summary {
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 15px;
+            font-weight: 500;
             color: #333;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
+            line-height: 1.4;
         }
 
         .ticket-meta {
             display: flex;
-            gap: 15px;
-            font-size: 13px;
+            gap: 16px;
+            font-size: 12px;
             color: #666;
-            margin-bottom: 10px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
         }
 
         .ticket-meta span {
             display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 6px;
+        }
+
+        .ticket-meta i {
+            color: #999;
         }
 
         .ticket-actions {
             display: flex;
-            gap: 10px;
-            margin-top: 10px;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e0e0e0;
         }
 
         .assign-btn, .view-btn {
             padding: 6px 14px;
-            border: 1px solid #ddd;
+            border: 1px solid #d0d0d0;
             background: white;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 12px;
             transition: all 0.3s;
+            color: #666;
         }
 
         .assign-btn:hover {
-            background: var(--primary-blue);
+            background: #29B6F6;
             color: white;
-            border-color: var(--primary-blue);
+            border-color: #29B6F6;
         }
 
         .view-btn:hover {
-            background: #f5f5f5;
+            background: #f5f7fa;
+            color: #333;
+            border-color: #29B6F6;
         }
 
         /* Technician Availability Panel */
         .tech-title {
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
             color: #333;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-size: 12px;
         }
 
         .tech-list {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
         }
 
         .tech-card {
-            padding: 12px;
-            background: #f5f5f5;
+            padding: 14px;
+            background: white;
+            border: 1px solid #e0e0e0;
             border-radius: 6px;
-            cursor: pointer;
             transition: all 0.3s;
         }
 
         .tech-card:hover {
-            background: #e8e8e8;
+            border-color: #29B6F6;
+            box-shadow: 0 2px 8px rgba(41, 182, 246, 0.1);
         }
 
         .tech-card.available {
-            border-left: 3px solid #4caf50;
+            border-left: 3px solid #22c55e;
         }
 
         .tech-card.busy {
-            border-left: 3px solid #ff9800;
+            border-left: 3px solid #f59e0b;
         }
 
-        .tech-card.overloaded {
-            border-left: 3px solid #e53935;
+        .tech-card.offline {
+            border-left: 3px solid #999;
         }
 
         .tech-name {
-            font-weight: 600;
-            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            font-size: 13px;
             margin-bottom: 4px;
         }
 
-        .tech-load {
-            font-size: 12px;
+        .tech-status {
+            font-size: 11px;
             color: #666;
-            display: flex;
-            align-items: center;
-            gap: 4px;
+        }
+
+        .tech-workload {
+            font-size: 11px;
+            color: #666;
+            margin-top: 6px;
         }
 
         .load-indicator {
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             border-radius: 50%;
         }
 
-        .load-indicator.green { background: #4caf50; }
-        .load-indicator.yellow { background: #ff9800; }
-        .load-indicator.red { background: #e53935; }
+        .load-indicator.green { background: #22c55e; }
+        .load-indicator.yellow { background: #f59e0b; }
+        .load-indicator.red { background: #ef4444; }
 
-        /* Modal Styles */
+        /* Modal Styles - Light Theme */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -278,6 +338,7 @@
             justify-content: center;
             align-items: center;
             z-index: 1000;
+            backdrop-filter: blur(4px);
         }
 
         .modal-overlay.active {
@@ -287,32 +348,37 @@
         .modal-content {
             background: white;
             padding: 30px;
-            border-radius: 8px;
+            border-radius: 12px;
             max-width: 600px;
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e0e0e0;
         }
 
         .modal-title {
-            font-size: 24px;
-            font-weight: 700;
+            font-size: 20px;
+            font-weight: 600;
             color: #333;
         }
 
         .close-btn {
-            font-size: 28px;
+            font-size: 24px;
             cursor: pointer;
-            color: #999;
+            color: #666;
             border: none;
             background: none;
+            transition: color 0.3s;
         }
 
         .close-btn:hover {
@@ -326,18 +392,30 @@
         .form-group label {
             display: block;
             margin-bottom: 8px;
-            font-weight: 600;
+            font-weight: 500;
             color: #333;
+            font-size: 13px;
         }
 
         .form-group input,
         .form-group textarea,
         .form-group select {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+            padding: 12px;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
             font-size: 14px;
+            background: white;
+            color: #333;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #29B6F6;
+            box-shadow: 0 0 0 3px rgba(41, 182, 246, 0.1);
         }
 
         .form-group textarea {
@@ -345,64 +423,79 @@
             min-height: 100px;
         }
 
+        .form-group select option {
+            background: white;
+            color: #333;
+        }
+
         .required {
-            color: #e53935;
+            color: #ef4444;
         }
 
         .submit-btn {
-            background: var(--primary-blue);
+            background: #29B6F6;
             color: white;
             padding: 12px 24px;
             border: none;
             border-radius: 6px;
-            font-size: 16px;
-            font-weight: 600;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
             width: 100%;
+            transition: all 0.3s;
         }
 
         .submit-btn:hover {
-            background: #3a7bc8;
+            background: #039BE5;
+            transform: translateY(-1px);
         }
 
         .empty-state {
             text-align: center;
             padding: 60px 20px;
-            color: #999;
+            color: #666;
         }
 
         .empty-state-icon {
             font-size: 64px;
             margin-bottom: 20px;
+            color: #333;
         }
 
-        /* Statistics Dashboard */
+        /* Statistics Dashboard - Light Theme with Baby Blue */
         .stats-dashboard {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
+            gap: 16px;
             padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 8px 8px 0 0;
+            background: #f5f7fa;
+            border-radius: 12px 12px 0 0;
         }
 
         .stat-card {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 20px;
+            background: white;
+            padding: 24px;
             border-radius: 8px;
             text-align: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            border-color: #29B6F6;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(41, 182, 246, 0.15);
         }
 
         .stat-value {
-            font-size: 36px;
+            font-size: 32px;
             font-weight: 700;
-            color: #333;
+            color: #29B6F6;
             margin-bottom: 8px;
         }
 
         .stat-label {
-            font-size: 14px;
+            font-size: 11px;
             color: #666;
             font-weight: 500;
             text-transform: uppercase;
@@ -410,27 +503,35 @@
         }
 
         .stat-card.total {
-            border-top: 4px solid #0066cc;
+            border-top: 3px solid #29B6F6;
         }
 
         .stat-card.solved {
-            border-top: 4px solid #4caf50;
+            border-top: 3px solid #22c55e;
+        }
+
+        .stat-card.solved .stat-value {
+            color: #22c55e;
         }
 
         .stat-card.unsolved {
-            border-top: 4px solid #ff9800;
+            border-top: 3px solid #f59e0b;
+        }
+
+        .stat-card.unsolved .stat-value {
+            color: #f59e0b;
         }
 
         /* Active Tickets Panel */
         .tech-tickets {
-            margin-top: 8px;
-            padding-top: 8px;
+            margin-top: 10px;
+            padding-top: 10px;
             border-top: 1px solid #e0e0e0;
         }
 
         .tech-ticket-item {
             font-size: 11px;
-            padding: 4px 0;
+            padding: 6px 0;
             color: #666;
             display: flex;
             justify-content: space-between;
@@ -438,32 +539,35 @@
         }
 
         .tech-ticket-priority {
-            padding: 2px 6px;
+            padding: 2px 8px;
             border-radius: 3px;
             font-size: 10px;
-            font-weight: 600;
+            font-weight: 500;
         }
 
         .tech-ticket-priority.urgent {
             background: #ffebee;
             color: #c62828;
+            border: 1px solid #ffcdd2;
         }
 
         .tech-ticket-priority.high {
             background: #fff3e0;
             color: #e65100;
+            border: 1px solid #ffe0b2;
         }
 
         .tech-ticket-priority.normal {
-            background: #e3f2fd;
-            color: #1565c0;
+            background: rgba(41, 182, 246, 0.1);
+            color: #29B6F6;
+            border: 1px solid rgba(41, 182, 246, 0.2);
         }
 
         .tech-ticket-more {
             font-size: 11px;
             color: #666;
             font-style: italic;
-            padding: 4px 0;
+            padding: 6px 0;
             text-align: center;
         }
     </style>
@@ -472,28 +576,22 @@
     <!-- Header -->
     <header class="header">
         <div class="header-container">
-            <div class="custom-logo">
-                <span class="logo-segment blue">N</span>
-                <span class="logo-segment orange">d</span>
-                <span class="logo-segment blue">a</span>
-                <span class="logo-segment orange">b</span>
-                <span class="logo-segment blue">a</span>
-                <span class="logo-segment orange">s</span>
-                <span class="logo-segment blue">e</span>
-                <span class="logo-text">IT Helpdesk</span>
+            <div class="nav-brand">
+                <h1>Ndabase IT Solution</h1>
+                <span class="nav-subtitle">Helpdesk Support Information</span>
             </div>
             <div class="header-right">
-                <span style="color: #4caf50; margin-right: 15px; font-size: 12px;">
+                <span style="color: #020302; margin-right: 15px; font-size: 12px;">
                     <span style="display: inline-block; width: 8px; height: 8px; background: #4caf50; border-radius: 50%; animation: pulse 2s infinite; margin-right: 5px;"></span>
                     <span id="lastUpdate">Live Updates</span>
                 </span>
                 <span class="user-role">Helpdesk Officer</span>
                 <span class="user-name" id="userName">Loading...</span>
                 <button class="profile-menu-btn" onclick="showProfileModal()" style="margin-left: 10px; padding: 6px 12px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
-                    <span class="profile-icon">👤</span> Profile
+                    <i class="fas fa-user"></i> Profile
                 </button>
                 <button class="profile-menu-btn" onclick="showPasswordModal()" style="margin-left: 8px; padding: 6px 12px; background: #607D8B; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
-                    <span class="profile-icon">🔒</span> Password
+                    <i class="fas fa-lock"></i> Password
                 </button>
                 <button onclick="logout()" class="logout-btn">Logout</button>
             </div>
@@ -532,10 +630,10 @@
                 <button class="filter-btn" onclick="applyFilter('today')">Today</button>
                 <button class="filter-btn" onclick="applyFilter('urgent')">Urgent</button>
                 <button class="create-ticket-btn" onclick="openManageUsersModal()" style="background: #0066cc; margin-right: 10px;">
-                    Manage Users
+                    <i class="fas fa-users-cog"></i> Manage Users
                 </button>
                 <button class="create-ticket-btn" onclick="openCreateModal()">
-                    + Create Ticket
+                    <i class="fas fa-plus-circle"></i> Create Ticket
                 </button>
             </div>
 
@@ -614,7 +712,7 @@
                 <button class="close-btn" onclick="closeManageUsersModal()">&times;</button>
             </div>
             <div style="padding: 20px;">
-                <button class="submit-btn" onclick="showCreateUserForm()" style="margin-bottom: 20px;">+ Create New User</button>
+                <button class="submit-btn" onclick="showCreateUserForm()" style="margin-bottom: 20px;"><i class="fas fa-user-plus"></i> Create New User</button>
                 
                 <!-- Create User Form (Initially Hidden) -->
                 <div id="createUserForm" style="display: none; margin-bottom: 20px; background: #f5f5f5; padding: 20px; border-radius: 8px;">
@@ -642,7 +740,7 @@
                                 <option value="technician">Technician</option>
                                 <option value="helpdesk_officer">Helpdesk Officer</option>
                                 <option value="ict_manager">ICT Manager</option>
-                                <option value="ict_gm">ICT GM</option>
+                                <option value="ict_gm">Senior Technician</option>
                             </select>
                         </div>
                         <div class="form-group" id="technicianTypeGroup">
@@ -679,7 +777,7 @@
     <div id="profileModal" class="profile-modal">
         <div class="profile-modal-content">
             <div class="profile-modal-header">
-                <h2>✏️ Edit Profile</h2>
+                <h2><i class="fas fa-user-edit"></i> Edit Profile</h2>
                 <button class="profile-modal-close" onclick="hideProfileModal()">&times;</button>
             </div>
             <div class="profile-modal-body">
@@ -704,10 +802,10 @@
                     
                     <div class="profile-form-actions">
                         <button type="submit" class="profile-btn profile-btn-primary">
-                            💾 Save Changes
+                            <i class="fas fa-save"></i> Save Changes
                         </button>
                         <button type="button" class="profile-btn profile-btn-secondary" onclick="hideProfileModal()">
-                            ✖ Cancel
+                            <i class="fas fa-times"></i> Cancel
                         </button>
                     </div>
                 </form>
@@ -718,7 +816,7 @@
     <div id="passwordModal" class="profile-modal">
         <div class="profile-modal-content">
             <div class="profile-modal-header">
-                <h2>🔒 Change Password</h2>
+                <h2>Change Password</h2>
                 <button class="profile-modal-close" onclick="hidePasswordModal()">&times;</button>
             </div>
             <div class="profile-modal-body">
@@ -730,7 +828,7 @@
                         <label for="currentPassword">Current Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" id="currentPassword" required>
-                            <span class="password-toggle-icon" onclick="togglePasswordField('currentPassword')">👁️</span>
+                            <span class="password-toggle-icon" onclick="togglePasswordField('currentPassword')"><i class="far fa-eye"></i></span>
                         </div>
                     </div>
                     
@@ -738,7 +836,7 @@
                         <label for="newPassword">New Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" id="newPassword" required minlength="6">
-                            <span class="password-toggle-icon" onclick="togglePasswordField('newPassword')">👁️</span>
+                            <span class="password-toggle-icon" onclick="togglePasswordField('newPassword')"><i class="far fa-eye"></i></span>
                         </div>
                         <small style="color: #666; font-size: 12px;">Minimum 6 characters</small>
                     </div>
@@ -747,16 +845,16 @@
                         <label for="confirmPassword">Confirm New Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" id="confirmPassword" required minlength="6">
-                            <span class="password-toggle-icon" onclick="togglePasswordField('confirmPassword')">👁️</span>
+                            <span class="password-toggle-icon" onclick="togglePasswordField('confirmPassword')"><i class="far fa-eye"></i></span>
                         </div>
                     </div>
                     
                     <div class="profile-form-actions">
                         <button type="submit" class="profile-btn profile-btn-primary">
-                            🔐 Change Password
+                            <i class="fas fa-key"></i> Change Password
                         </button>
                         <button type="button" class="profile-btn profile-btn-secondary" onclick="hidePasswordModal()">
-                            ✖ Cancel
+                            <i class="fas fa-times"></i> Cancel
                         </button>
                     </div>
                 </form>
@@ -773,10 +871,10 @@
         
         if (field.type === 'password') {
             field.type = 'text';
-            icon.textContent = '🙈';
+            icon.innerHTML = '<i class="far fa-eye-slash"></i>';
         } else {
             field.type = 'password';
-            icon.textContent = '👁️';
+            icon.innerHTML = '<i class="far fa-eye"></i>';
         }
     }
 
@@ -812,7 +910,88 @@
         errorEl.style.display = 'none';
     }
     </script>
-    <script src="/static/js/helpdesk-officer.js?v=3.4"></script>
+
+    <!-- Edit Ticket Modal -->
+    <div class="modal-overlay" id="editTicketModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Ticket</h2>
+                <button onclick="closeEditModal()" style="background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+            </div>
+            <form id="editTicketForm" onsubmit="updateTicket(event)">
+                <input type="hidden" id="editTicketId">
+                
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Ticket Number</label>
+                    <input type="text" id="editTicketNumber" readonly style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; background: #f5f5f5;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">User Name *</label>
+                    <input type="text" id="editUserName" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">User Email *</label>
+                    <input type="email" id="editUserEmail" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">User Phone *</label>
+                    <input type="tel" id="editUserPhone" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Problem Summary *</label>
+                    <input type="text" id="editProblemSummary" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Problem Description</label>
+                    <textarea id="editProblemDescription" rows="4" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Priority *</label>
+                    <select id="editPriority" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="Normal">Normal</option>
+                        <option value="High">High</option>
+                        <option value="Urgent">Urgent</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Assign To *</label>
+                    <select id="editAssignee" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="">Select Technician...</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight: 600;">Status *</label>
+                    <select id="editStatus" required style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                        <option value="Open">Open</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Waiting on User">Waiting on Parts</option>
+                        <option value="Resolved">Resolved</option>
+                        <option value="Closed">Closed</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" style="flex: 1; background: #4caf50; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <button type="button" onclick="closeEditModal()" style="flex: 1; background: #666; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                        <i class="fas fa-times"></i> Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/js/helpdesk-officer.js?v=7.0"></script>
 </body>
 </html>
+
 

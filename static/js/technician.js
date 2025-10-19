@@ -335,7 +335,8 @@ async function submitForcedUpdate() {
         
     } catch (error) {
         console.error('Error submitting forced update:', error);
-        showError(error.message);
+        const errorMessage = error.message || String(error) || 'Failed to submit update';
+        showError(errorMessage);
     }
 }
 
@@ -454,7 +455,7 @@ function renderTimeline(updates) {
             <div class="timeline-item ${isInternal}">
                 <div class="timeline-header">
                     <span class="timeline-user">👤 ${update.updated_by_name || update.user_name} ${internalLabel}</span>
-                    <span class="timeline-time">🕐 ${formatDateTime(update.created_at)}</span>
+                    <span class="timeline-time" style="color: #0066cc; font-weight: 600;">🕐 ${formatDateTime(update.created_at)}</span>
                 </div>
                 ${statusChange}
                 ${priorityChange}
@@ -533,7 +534,10 @@ async function submitUpdate() {
         
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail?.message || error.detail || 'Failed to post update');
+            const errorMessage = typeof error.detail === 'string' 
+                ? error.detail 
+                : error.detail?.message || error.message || 'Failed to post update';
+            throw new Error(errorMessage);
         }
         
         closeUpdateModal();
@@ -545,7 +549,8 @@ async function submitUpdate() {
         
     } catch (error) {
         console.error('Error posting update:', error);
-        showError(error.message || error.toString() || 'Failed to post update');
+        const errorMessage = error.message || String(error) || 'Failed to post update';
+        showError(errorMessage);
     }
 }
 
@@ -595,11 +600,12 @@ async function submitTimeTracking() {
         showSuccess('Time tracked successfully!');
         
         // Reload ticket detail
-        await openTicketDetail(currentTicket.id);
+        await openTicketDetail(currentTicket.ticket_number);
         
     } catch (error) {
         console.error('Error tracking time:', error);
-        showError(error.message);
+        const errorMessage = error.message || String(error) || 'Failed to track time';
+        showError(errorMessage);
     }
 }
 
@@ -730,7 +736,8 @@ async function submitReassign() {
         
     } catch (error) {
         console.error('Error reassigning ticket:', error);
-        showError(error.message);
+        const errorMessage = error.message || String(error) || 'Failed to reassign ticket';
+        showError(errorMessage);
     }
 }
 
@@ -812,7 +819,10 @@ async function updateTicketStatus(ticketId, newStatus) {
         
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail?.message || error.detail || 'Failed to update status');
+            const errorMessage = typeof error.detail === 'string' 
+                ? error.detail 
+                : error.detail?.message || error.message || 'Failed to update status';
+            throw new Error(errorMessage);
         }
         
         showSuccess(`Ticket moved to ${newStatus}`);
@@ -820,7 +830,8 @@ async function updateTicketStatus(ticketId, newStatus) {
         
     } catch (error) {
         console.error('Error updating ticket status:', error);
-        showError(error.message);
+        const errorMessage = error.message || String(error) || 'Failed to update status';
+        showError(errorMessage);
         await loadTickets(); // Reload to revert
     }
 }
@@ -934,7 +945,10 @@ async function submitCreateTicket() {
             loadTickets();
         } else {
             const error = await response.json();
-            showError(error.detail || 'Failed to create ticket');
+            const errorMessage = typeof error.detail === 'string' 
+                ? error.detail 
+                : error.detail?.message || error.message || 'Failed to create ticket';
+            showError(errorMessage);
         }
     } catch (error) {
         console.error('Error creating ticket:', error);

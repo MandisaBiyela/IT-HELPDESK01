@@ -42,12 +42,13 @@ class SLAMonitor:
         """Check for SLA breaches and trigger escalations"""
         db = SessionLocal()
         try:
-            # Get all open or in-progress tickets
+            # Get all open or in-progress tickets (EXCLUDE "Waiting on User" - SLA is paused)
             tickets = db.query(Ticket).filter(
-                Ticket.status.in_([TicketStatus.OPEN, TicketStatus.IN_PROGRESS])
+                Ticket.status.in_([TicketStatus.OPEN, TicketStatus.IN_PROGRESS]),
+                Ticket.status != TicketStatus.WAITING_ON_USER  # ✅ SLA EXEMPT when waiting for parts/user
             ).all()
             
-            now = datetime.utcnow()
+            now = datetime.now()  # ✅ FIXED: Use local time, not UTC
             
             for ticket in tickets:
                 # Calculate time remaining
@@ -92,7 +93,7 @@ class SLAMonitor:
         ticket.priority = new_priority
         
         # Recompute SLA deadline (add 20 minutes for urgent tickets)
-        ticket.sla_deadline = datetime.utcnow() + timedelta(minutes=20)
+        ticket.sla_deadline = datetime.now() + timedelta(minutes=20)  # ✅ FIXED: Use local time
         
         # Set forced update flag (technician MUST update before doing anything else)
         ticket.requires_update = 1
@@ -101,7 +102,7 @@ class SLAMonitor:
         ticket.escalated = 1
         
         # Update timestamp
-        ticket.updated_at = datetime.utcnow()
+        ticket.updated_at = datetime.now()  # ✅ FIXED: Use local time
         
         # Create escalation record
         escalation = SLAEscalation(
@@ -123,7 +124,7 @@ class SLAMonitor:
                 'old_priority': old_priority,
                 'new_priority': new_priority.value,
                 'old_sla_deadline': ticket.sla_deadline.isoformat(),
-                'new_sla_deadline': (datetime.utcnow() + timedelta(minutes=20)).isoformat(),
+                'new_sla_deadline': (datetime.now() + timedelta(minutes=20)).isoformat(),  # ✅ FIXED
                 'reason': 'SLA deadline exceeded',
                 'requires_update': True,
                 'escalated_to': ['assignee', 'ict_manager', 'ict_gm']

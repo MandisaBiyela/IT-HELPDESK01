@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reports & Analytics - ICT GM</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/profile.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -64,16 +65,16 @@
 <body>
     <nav class="navbar">
         <div class="nav-brand">
-            <h1>Ndabase IT Helpdesk</h1>
-            <span class="nav-subtitle">ICT General Manager - Reports & Analytics</span>
+            <h1>Ndabase IT Solution</h1>
+            <span class="nav-subtitle">Senior Technician - Reports & Analytics</span>
         </div>
         <div class="nav-user">
             <span id="userName">Loading...</span>
             <button class="profile-menu-btn" onclick="showProfileModal()" style="margin-left: 10px; padding: 6px 12px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
-                <span class="profile-icon">👤</span> Profile
+                <i class="fas fa-user"></i> Profile
             </button>
             <button class="profile-menu-btn" onclick="showPasswordModal()" style="margin-left: 8px; padding: 6px 12px; background: #607D8B; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
-                <span class="profile-icon">🔒</span> Password
+                <i class="fas fa-lock"></i> Password
             </button>
             <button onclick="logout()" class="btn-logout">Logout</button>
         </div>
@@ -82,7 +83,7 @@
         <a href="/static/ict-gm.html" class="back-nav">← Back to Dashboard</a>
         
         <div class="page-header">
-            <h2>📊 Reports & Analytics</h2>
+            <h2><i class="fas fa-chart-bar"></i> Reports & Analytics</h2>
             <p>Comprehensive ticket data analysis and executive-level insights</p>
             <div style="margin-top: 10px; color: #999; font-size: 13px;">
                 Last updated: <span id="lastUpdated">Loading...</span><span class="update-indicator"></span>
@@ -92,11 +93,11 @@
             </div>
         </div>
         <div class="filter-bar">
-            <div class="filter-title">📅 Filter Options</div>
+            <div class="filter-title"><i class="fas fa-filter"></i> Filter Options</div>
             <div class="filter-controls">
                 <div class="filter-group"><label>Start Date</label><input type="date" id="dateFrom" /></div>
                 <div class="filter-group"><label>End Date</label><input type="date" id="dateTo" /></div>
-                <div class="filter-group"><label>Status</label><select id="statusFilter"><option value="">All</option><option value="open">Open</option><option value="in_progress">In Progress</option><option value="waiting_on_user">Waiting on User</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></div>
+                <div class="filter-group"><label>Status</label><select id="statusFilter"><option value="">All</option><option value="open">Open</option><option value="in_progress">In Progress</option><option value="waiting_on_user">Waiting on Parts</option><option value="resolved">Resolved</option><option value="closed">Closed</option></select></div>
                 <div class="filter-group"><label>Priority</label><select id="priorityFilter"><option value="">All</option><option value="urgent">Urgent</option><option value="high">High</option><option value="normal">Normal</option></select></div>
             </div>
             <div class="filter-actions">
@@ -108,7 +109,7 @@
         <div class="stats-grid">
             <div class="stat-card blue"><div class="stat-label">Total Tickets</div><div class="stat-value" id="totalTickets">--</div></div>
             <div class="stat-card orange"><div class="stat-label">In Progress</div><div class="stat-value" id="inProgressTickets">--</div></div>
-            <div class="stat-card gold"><div class="stat-label">Waiting on User</div><div class="stat-value" id="waitingTickets">--</div></div>
+            <div class="stat-card gold"><div class="stat-label">Waiting on Parts</div><div class="stat-value" id="waitingTickets">--</div></div>
             <div class="stat-card green"><div class="stat-label">Resolved</div><div class="stat-value" id="resolvedTickets">--</div></div>
             <div class="stat-card red"><div class="stat-label">Escalated</div><div class="stat-value" id="escalatedTickets">--</div></div>
             <div class="stat-card purple"><div class="stat-label">Avg Resolution (hrs)</div><div class="stat-value" id="avgResolutionTime">--</div></div>

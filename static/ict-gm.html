@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Senior Technician Dashboard - Ndabase IT Helpdesk</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/profile.css">
     <style>
@@ -486,17 +487,17 @@
 <body>
     <nav class="navbar">
         <div class="nav-brand">
-            <h1>Ndabase IT Helpdesk</h1>
-            <span class="nav-subtitle">ICT General Manager - Executive Oversight</span>
+            <h1>Ndabase IT Solution</h1>
+            <span class="nav-subtitle">Senior Technician - Executive Oversight</span>
         </div>
         <div class="nav-actions" style="display: flex; align-items: center; gap: 15px;">
             <div class="nav-user">
                 <span id="userName">Loading...</span>
                 <button class="profile-menu-btn" onclick="showProfileModal()" style="margin-left: 10px; padding: 6px 12px; background: #2196F3; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
-                    <span class="profile-icon">👤</span> Profile
+                    <i class="fas fa-user"></i> Profile
                 </button>
                 <button class="profile-menu-btn" onclick="showPasswordModal()" style="margin-left: 8px; padding: 6px 12px; background: #607D8B; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
-                    <span class="profile-icon">🔒</span> Password
+                    <i class="fas fa-lock"></i> Password
                 </button>
                 <button onclick="logout()" class="btn-logout">Logout</button>
             </div>
@@ -598,7 +599,7 @@
     <div id="profileModal" class="profile-modal">
         <div class="profile-modal-content">
             <div class="profile-modal-header">
-                <h2>✏️ Edit Profile</h2>
+                <h2><i class="fas fa-user-edit"></i> Edit Profile</h2>
                 <button class="profile-modal-close" onclick="hideProfileModal()">&times;</button>
             </div>
             <div class="profile-modal-body">
@@ -637,7 +638,7 @@
     <div id="passwordModal" class="profile-modal">
         <div class="profile-modal-content">
             <div class="profile-modal-header">
-                <h2>🔒 Change Password</h2>
+                <h2><i class="fas fa-lock"></i> Change Password</h2>
                 <button class="profile-modal-close" onclick="hidePasswordModal()">&times;</button>
             </div>
             <div class="profile-modal-body">
@@ -649,7 +650,7 @@
                         <label for="currentPassword">Current Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" id="currentPassword" required>
-                            <span class="password-toggle-icon" onclick="togglePasswordField('currentPassword')">👁️</span>
+                            <span class="password-toggle-icon" onclick="togglePasswordField('currentPassword')"><i class="far fa-eye"></i></span>
                         </div>
                     </div>
                     
@@ -657,7 +658,7 @@
                         <label for="newPassword">New Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" id="newPassword" required minlength="6">
-                            <span class="password-toggle-icon" onclick="togglePasswordField('newPassword')">👁️</span>
+                            <span class="password-toggle-icon" onclick="togglePasswordField('newPassword')"><i class="far fa-eye"></i></span>
                         </div>
                         <small style="color: #666; font-size: 12px;">Minimum 6 characters</small>
                     </div>
@@ -666,7 +667,7 @@
                         <label for="confirmPassword">Confirm New Password</label>
                         <div class="password-field-wrapper">
                             <input type="password" id="confirmPassword" required minlength="6">
-                            <span class="password-toggle-icon" onclick="togglePasswordField('confirmPassword')">👁️</span>
+                            <span class="password-toggle-icon" onclick="togglePasswordField('confirmPassword')"><i class="far fa-eye"></i></span>
                         </div>
                     </div>
                     
@@ -692,10 +693,10 @@
         
         if (field.type === 'password') {
             field.type = 'text';
-            icon.textContent = '🙈';
+            icon.innerHTML = '<i class="far fa-eye-slash"></i>';
         } else {
             field.type = 'password';
-            icon.textContent = '👁️';
+            icon.innerHTML = '<i class="far fa-eye"></i>';
         }
     }
 
@@ -731,7 +732,7 @@
         errorEl.style.display = 'none';
     }
     </script>
-    <script src="/static/js/ict-gm.js?v=3.3"></script>
+    <script src="/static/js/ict-gm.js?v=7.0"></script>
 </body>
 </html>
 

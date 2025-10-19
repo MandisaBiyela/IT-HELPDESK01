@@ -14,7 +14,7 @@ class TicketPriority(str, enum.Enum):
 class TicketStatus(str, enum.Enum):
     OPEN = "Open"
     IN_PROGRESS = "In Progress"
-    WAITING_ON_USER = "Waiting on User"
+    WAITING_ON_USER = "Waiting on User"  # Keep database value, will display as "Waiting on Parts" in UI
     RESOLVED = "Resolved"
     CLOSED = "Closed"
 
@@ -53,6 +53,7 @@ class Ticket(Base):
     
     # SLA & Flags
     sla_status = Column(SQLEnum(SLAStatus), default=SLAStatus.ON_TRACK)
+    sla_paused_minutes = Column(Integer, default=0)  # Stores remaining time when status = "Waiting on User"
     requires_update = Column(Integer, default=0)  # 1 if compulsory update needed
     escalated = Column(Integer, default=0)  # 1 if escalated
     
@@ -99,5 +100,12 @@ class SLAEscalation(Base):
     previous_priority = Column(String, nullable=True)
     new_priority = Column(String, nullable=True)
     
+    # GM Acknowledgment fields
+    gm_acknowledged = Column(Integer, default=0)  # 0 = pending, 1 = acknowledged
+    acknowledged_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    acknowledged_at_gm = Column(DateTime, nullable=True)
+    acknowledgment_note = Column(Text, nullable=True)
+    
     # Relationships
     ticket = relationship("Ticket", back_populates="escalations")
+    acknowledged_by = relationship("User", foreign_keys=[acknowledged_by_id])

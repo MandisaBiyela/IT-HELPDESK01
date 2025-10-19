@@ -1,4 +1,4 @@
-// ICT GM Dashboard - Executive Oversight
+// Senior Technician Dashboard - Executive Oversight
 const API_BASE = 'http://localhost:8000/api';
 let allEscalations = [];
 let currentFilter = 'all';
@@ -25,13 +25,13 @@ function checkAuth() {
     
     const userRole = localStorage.getItem('user_role');
     if (userRole !== 'ict_gm') {
-        alert('Access denied. This page is for ICT General Manager only.');
+        alert('Access denied. This page is for Senior Technicians only.');
         window.location.href = '/static/index.html';
         return;
     }
     
     const userName = localStorage.getItem('user_name');
-    document.getElementById('userName').textContent = userName || 'ICT GM';
+    document.getElementById('userName').textContent = userName || 'Senior Technician';
 }
 
 function logout() {
@@ -92,7 +92,17 @@ async function loadEscalations() {
         if (!response.ok) throw new Error('Failed to load escalations');
         
         const data = await response.json();
-        allEscalations = data.escalations || [];
+        
+        // Store both active and paused escalations
+        allEscalations = {
+            active: data.active || data.escalations || [],
+            paused: data.paused || []
+        };
+        
+        // Update KPI for active escalations
+        if (data.active_escalations !== undefined) {
+            document.getElementById('activeEscalations').textContent = data.active_escalations;
+        }
         
         renderEscalations();
         
@@ -120,45 +130,105 @@ function filterEscalations(filter) {
 function renderEscalations() {
     const container = document.getElementById('escalationsFeed');
     
-    let filtered = allEscalations;
+    // Get active and paused lists
+    const activeList = allEscalations.active || [];
+    const pausedList = allEscalations.paused || [];
+    
+    // Filter based on current filter
+    let filteredActive = activeList;
+    let filteredPaused = pausedList;
     
     if (currentFilter === 'pending') {
-        filtered = allEscalations.filter(esc => !esc.gm_acknowledged);
+        // Pending: show unacknowledged active + ALL paused tickets
+        filteredActive = activeList.filter(esc => !esc.gm_acknowledged);
+        // Keep all paused tickets in pending view
     } else if (currentFilter === 'acknowledged') {
-        filtered = allEscalations.filter(esc => esc.gm_acknowledged);
+        // Acknowledged: only show acknowledged active escalations
+        filteredActive = activeList.filter(esc => esc.gm_acknowledged);
+        filteredPaused = []; // Don't show paused in acknowledged view
     }
+    // else 'all': show everything
     
-    if (filtered.length === 0) {
+    const hasActive = filteredActive.length > 0;
+    const hasPaused = filteredPaused.length > 0;
+    
+    if (!hasActive && !hasPaused) {
         const message = currentFilter === 'pending' 
-            ? 'All escalations have been acknowledged'
+            ? 'All escalations have been acknowledged and no tickets are paused'
             : currentFilter === 'acknowledged'
             ? 'No acknowledged escalations'
-            : 'No active escalations';
+            : 'No active escalations or paused tickets';
             
         container.innerHTML = `
             <div class="empty-state">
-                <div class="empty-state-icon" style="font-size: 48px; color: #ccc;">...</div>
+                <div class="empty-state-icon" style="font-size: 48px; color: #ccc;">✓</div>
                 <div class="empty-state-text">${message}</div>
             </div>
         `;
         return;
     }
     
-    // Sort by escalation time (most recent first)
-    filtered.sort((a, b) => new Date(b.escalated_at) - new Date(a.escalated_at));
+    let html = '';
     
-    container.innerHTML = filtered.map(esc => renderEscalationCard(esc)).join('');
+    // Render Active Escalations Section
+    if (hasActive) {
+        // Sort by escalation time (most recent first)
+        filteredActive.sort((a, b) => new Date(b.escalated_at) - new Date(a.escalated_at));
+        
+        html += `
+            <div class="escalations-section">
+                <h3 style="color: #e74c3c; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Active Escalations (SLA Breached) 
+                    <span style="background: #e74c3c; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;">${filteredActive.length}</span>
+                </h3>
+                ${filteredActive.map(esc => renderEscalationCard(esc, false)).join('')}
+            </div>
+        `;
+    }
+    
+    // Render Paused Tickets Section
+    if (hasPaused) {
+        // Sort by time paused (most time paused first)
+        filteredPaused.sort((a, b) => (b.sla_paused_minutes || 0) - (a.sla_paused_minutes || 0));
+        
+        html += `
+            <div class="escalations-section" style="margin-top: ${hasActive ? '30px' : '0'};">
+                <h3 style="color: #95a5a6; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-pause-circle"></i>
+                    Paused Tickets (Waiting on Parts)
+                    <span style="background: #95a5a6; color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;">${filteredPaused.length}</span>
+                </h3>
+                ${filteredPaused.map(esc => renderEscalationCard(esc, true)).join('')}
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
 }
 
 // Render individual escalation row (list style)
-function renderEscalationCard(esc) {
+function renderEscalationCard(esc, isPaused = false) {
     const acknowledgedClass = esc.gm_acknowledged ? 'acknowledged' : '';
+    const pausedClass = isPaused ? 'paused-ticket' : '';
     
     // Determine status badge
     let statusBadge = '';
     let statusClass = '';
     
-    if (esc.requires_update) {
+    if (isPaused) {
+        // Paused ticket styling
+        statusBadge = 'Paused';
+        statusClass = 'paused';
+        
+        // Add time paused info
+        const minutesPaused = esc.sla_paused_minutes || 0;
+        if (minutesPaused > 0) {
+            const hours = Math.floor(minutesPaused / 60);
+            const mins = minutesPaused % 60;
+            statusBadge += ` (${hours}h ${mins}m saved)`;
+        }
+    } else if (esc.requires_update) {
         statusBadge = 'Update Required';
         statusClass = 'update-required';
     } else if (esc.status === 'in_progress') {
@@ -172,14 +242,20 @@ function renderEscalationCard(esc) {
         statusClass = 'in-progress';
     }
     
+    // Get escalation reason (for paused tickets, this includes the waiting reason)
+    const reason = isPaused ? (esc.escalation_reason || 'Waiting on Parts') : '';
+    
     return `
-        <div class="escalation-row ${acknowledgedClass}" onclick="viewTicketDetail('${esc.ticket_number}', ${esc.ticket_id})" style="cursor: pointer;">
+        <div class="escalation-row ${acknowledgedClass} ${pausedClass}" onclick="viewTicketDetail('${esc.ticket_number}', ${esc.ticket_id})" style="cursor: pointer;">
             <div class="col-ticket">
-                <div class="ticket-indicator"></div>
+                <div class="ticket-indicator" style="${isPaused ? 'background: #95a5a6;' : ''}"></div>
                 <span class="ticket-number">${esc.ticket_number || 'N/A'}</span>
             </div>
             
-            <div class="col-problem">${escapeHtml(esc.problem_summary || esc.title || 'No description')}</div>
+            <div class="col-problem">
+                ${escapeHtml(esc.problem_summary || esc.title || 'No description')}
+                ${isPaused && reason ? `<div style="font-size: 12px; color: #7f8c8d; margin-top: 4px;">${escapeHtml(reason)}</div>` : ''}
+            </div>
             
             <div class="col-status">
                 <span class="status-badge ${statusClass}">${statusBadge}</span>
@@ -287,7 +363,7 @@ function renderUpdates(updates) {
             <div style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin-bottom: 10px; border-left: 3px solid #0066cc;">
                 <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px;">
                     <span style="font-weight: 600;">${update.user_name}</span>
-                    <span style="color: #666;">${getTimeAgo(update.created_at)} ${timeTracked}</span>
+                    <span style="color: #0066cc; font-weight: 600;">${getTimeAgo(update.created_at)} ${timeTracked}</span>
                 </div>
                 <div style="font-size: 14px; color: #444; line-height: 1.5;">
                     ${escapeHtml(update.update_text)}

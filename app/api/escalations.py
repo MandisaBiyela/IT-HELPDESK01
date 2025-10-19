@@ -25,17 +25,29 @@ def get_escalations(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(["ict_manager", "ict_gm", "admin"]))
 ):
-    """Get all escalated tickets with details - Manager and GM only"""
+    """Get all escalated tickets AND paused tickets (Waiting on User) - Manager and GM only"""
     
-    # Query escalated tickets
-    query = db.query(Ticket).filter(Ticket.escalated == 1)
+    # Query escalated tickets (SLA breached) - EXCLUDE resolved/closed tickets
+    escalated_query = db.query(Ticket).filter(
+        Ticket.escalated == 1,
+        Ticket.status.notin_([TicketStatus.RESOLVED, TicketStatus.CLOSED])  # Only show open escalations
+    )
     
     if status_filter:
-        query = query.filter(Ticket.status == status_filter)
+        escalated_query = escalated_query.filter(Ticket.status == status_filter)
     
-    escalated_tickets = query.order_by(Ticket.updated_at.desc()).all()
+    escalated_tickets = escalated_query.order_by(Ticket.updated_at.desc()).all()
     
-    result = []
+    # Query paused tickets (Waiting on User/Parts) - ONLY if no specific status filter or filter is "pending"
+    paused_tickets = []
+    if not status_filter or status_filter == "pending":
+        paused_tickets = db.query(Ticket).filter(
+            Ticket.status == TicketStatus.WAITING_ON_USER,
+            Ticket.escalated == 0  # Not already escalated
+        ).order_by(Ticket.updated_at.desc()).all()
+    
+    # Process escalated tickets
+    active_escalations = []
     for ticket in escalated_tickets:
         # Get latest escalation record
         latest_escalation = db.query(SLAEscalation).filter(
@@ -54,15 +66,28 @@ def get_escalations(
             else:
                 time_since = f"{int(hours / 24)} days ago"
         
-        result.append({
+        # Get acknowledgment info
+        gm_acknowledged = bool(latest_escalation.gm_acknowledged) if latest_escalation else False
+        acknowledged_by_name = None
+        acknowledged_at = None
+        acknowledgment_note = None
+        
+        if latest_escalation and latest_escalation.gm_acknowledged:
+            if latest_escalation.acknowledged_by_id:
+                ack_user = db.query(User).filter(User.id == latest_escalation.acknowledged_by_id).first()
+                acknowledged_by_name = ack_user.name if ack_user else "Unknown"
+            acknowledged_at = latest_escalation.acknowledged_at_gm
+            acknowledgment_note = latest_escalation.acknowledgment_note
+        
+        active_escalations.append({
             "id": ticket.id,
             "ticket_id": ticket.id,
             "ticket_number": ticket.ticket_number,
-            "title": ticket.problem_summary,  # Use problem_summary as title
+            "title": ticket.problem_summary,
             "problem_summary": ticket.problem_summary,
             "priority": ticket.priority.value,
             "status": ticket.status.value,
-            "category": "General Support",  # Default category since it's not in the model
+            "category": "General Support",
             "sla_status": ticket.sla_status.value if ticket.sla_status else "Unknown",
             "requires_update": bool(ticket.requires_update),
             "assignee_name": ticket.assignee.name if ticket.assignee else "Unassigned",
@@ -77,12 +102,72 @@ def get_escalations(
             "previous_priority": latest_escalation.previous_priority if latest_escalation else None,
             "created_at": ticket.created_at,
             "sla_deadline": ticket.sla_deadline,
-            "gm_acknowledged": False  # Default to False since model doesn't track this
+            "gm_acknowledged": gm_acknowledged,
+            "acknowledged_by": acknowledged_by_name,
+            "acknowledged_at": acknowledged_at,
+            "acknowledgment_note": acknowledgment_note,
+            "type": "escalation"  # Mark as escalation type
+        })
+    
+    # Process paused tickets (Waiting on User)
+    paused_escalations = []
+    for ticket in paused_tickets:
+        # Calculate how long it's been paused
+        diff = datetime.utcnow() - ticket.updated_at
+        hours = diff.total_seconds() / 3600
+        if hours < 1:
+            time_paused = f"{int(diff.total_seconds() / 60)} minutes"
+        elif hours < 24:
+            time_paused = f"{int(hours)} hours"
+        else:
+            time_paused = f"{int(hours / 24)} days"
+        
+        # Get the last update to show why it's paused
+        from app.models.ticket import TicketUpdate
+        last_update = db.query(TicketUpdate).filter(
+            TicketUpdate.ticket_id == ticket.id
+        ).order_by(TicketUpdate.created_at.desc()).first()
+        
+        waiting_reason = last_update.update_text if last_update else "Waiting for external response"
+        
+        paused_escalations.append({
+            "id": ticket.id,
+            "ticket_id": ticket.id,
+            "ticket_number": ticket.ticket_number,
+            "title": ticket.problem_summary,
+            "problem_summary": ticket.problem_summary,
+            "priority": ticket.priority.value,
+            "status": ticket.status.value,
+            "category": "General Support",
+            "sla_status": "Paused",  # Custom status for paused tickets
+            "requires_update": False,
+            "assignee_name": ticket.assignee.name if ticket.assignee else "Unassigned",
+            "assignee_id": ticket.assignee_id,
+            "reported_by_name": ticket.user_name,
+            "reported_by_email": ticket.user_email,
+            "user_name": ticket.user_name,
+            "user_email": ticket.user_email,
+            "escalation_reason": f"⏸️ SLA Paused - {waiting_reason}",
+            "escalated_at": ticket.updated_at,  # When it was paused
+            "time_since_escalation": f"Paused for {time_paused}",
+            "previous_priority": None,
+            "created_at": ticket.created_at,
+            "sla_deadline": ticket.sla_deadline,
+            "sla_paused_minutes": ticket.sla_paused_minutes,  # Show remaining time
+            "gm_acknowledged": False,  # Paused tickets don't need acknowledgment
+            "acknowledged_by": None,
+            "acknowledged_at": None,
+            "acknowledgment_note": None,
+            "type": "paused"  # Mark as paused type
         })
     
     return {
-        "total": len(result),
-        "escalations": result
+        "total": len(active_escalations) + len(paused_escalations),
+        "active_escalations": len(active_escalations),
+        "paused_tickets": len(paused_escalations),
+        "escalations": active_escalations,  # For backward compatibility
+        "active": active_escalations,  # SLA breached tickets
+        "paused": paused_escalations  # Waiting on User tickets
     }
 
 
@@ -93,7 +178,7 @@ async def acknowledge_escalation(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role(["ict_gm", "admin"]))
 ):
-    """GM acknowledges an escalation - creates audit log"""
+    """GM acknowledges an escalation - updates escalation record and creates audit log"""
     ticket = db.query(Ticket).filter(Ticket.id == ticket_id).first()
     
     if not ticket:
@@ -108,6 +193,18 @@ async def acknowledge_escalation(
             detail="This ticket is not escalated"
         )
     
+    # Get the latest escalation record for this ticket
+    latest_escalation = db.query(SLAEscalation).filter(
+        SLAEscalation.ticket_id == ticket.id
+    ).order_by(SLAEscalation.escalated_at.desc()).first()
+    
+    if latest_escalation:
+        # Update the escalation record with GM acknowledgment
+        latest_escalation.gm_acknowledged = 1
+        latest_escalation.acknowledged_by_id = current_user.id
+        latest_escalation.acknowledged_at_gm = datetime.now()
+        latest_escalation.acknowledgment_note = acknowledgment_note
+    
     # Create audit log for acknowledgment
     audit_log = AuditLog(
         entity_type='escalation',
@@ -118,7 +215,7 @@ async def acknowledge_escalation(
             'ticket_number': ticket.ticket_number,
             'acknowledged_by': current_user.name,
             'acknowledgment_note': acknowledgment_note or 'No note provided',
-            'acknowledged_at': datetime.utcnow().isoformat(),
+            'acknowledged_at': datetime.now().isoformat(),
             'priority': ticket.priority.value,
             'status': ticket.status.value
         })
@@ -130,7 +227,9 @@ async def acknowledge_escalation(
         "success": True,
         "message": f"Escalation acknowledged by {current_user.name}",
         "ticket_number": ticket.ticket_number,
-        "acknowledged_at": datetime.utcnow()
+        "acknowledged_at": datetime.now(),
+        "acknowledged_by": current_user.name,
+        "note": acknowledgment_note
     }
 
 
