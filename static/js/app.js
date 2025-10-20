@@ -143,7 +143,7 @@ async function handleSignup(e) {
         
         if (response.ok) {
             const data = await response.json();
-            alert('Account created successfully! Please login.');
+            showSuccess('Account created successfully! Please login.');
             showLoginPage();
         } else {
             const error = await response.json();
@@ -241,7 +241,7 @@ async function loadDashboard() {
                 break;
             case 'admin':
                 // Admin role disabled
-                alert('Admin access has been disabled. Please contact system administrator.');
+                showWarning('Admin access has been disabled. Please contact system administrator.');
                 handleLogout();
                 break;
             default:
@@ -368,7 +368,7 @@ async function openTicket(ticketNumber) {
         displayTicketDetail(ticket);
     } catch (error) {
         console.error('Failed to load ticket:', error);
-        alert('Failed to load ticket details');
+        showError('Failed to load ticket details');
     }
 }
 
@@ -511,11 +511,11 @@ async function handleUpdateTicket(e, ticketNumber) {
     
     try {
         await apiPatch(`/api/tickets/${ticketNumber}`, updateData);
-        alert('Ticket updated successfully');
+        showSuccess('Ticket updated successfully');
         closeModal();
         await loadTickets();
     } catch (error) {
-        alert('Failed to update ticket: ' + error.message);
+        showError('Failed to update ticket: ' + error.message);
     }
 }
 
@@ -584,7 +584,7 @@ async function loadStatistics() {
         displayStatistics(stats);
     } catch (error) {
         console.error('Failed to load statistics:', error);
-        alert('Failed to load statistics');
+        showError('Failed to load statistics');
     }
 }
 
@@ -715,7 +715,7 @@ async function exportToCSV() {
         a.click();
         a.remove();
     } catch (error) {
-        alert('Failed to export CSV: ' + error.message);
+        showError('Failed to export CSV: ' + error.message);
     }
 }
 

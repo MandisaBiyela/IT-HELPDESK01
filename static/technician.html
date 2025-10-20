@@ -6,6 +6,7 @@
     <title>Technician Workbench - Ndabase IT Helpdesk</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/notifications.css">
     <style>
         /* Kanban Board Layout */
         .kanban-container {
@@ -150,7 +151,6 @@
             line-height: 1.3;
             display: -webkit-box;
             -webkit-line-clamp: 2;
-            line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
@@ -857,7 +857,7 @@
                             <option value="">-- Keep Current Status --</option>
                             <option value="Open">Open</option>
                             <option value="In Progress">In Progress</option>
-                            <option value="Waiting on parts">Waiting on parts</option>
+                            <option value="Waiting on User">Waiting on parts</option>
                             <option value="Resolved">Resolved</option>
                             <option value="Closed">Closed</option>
                         </select>
@@ -993,7 +993,8 @@
         </div>
     </div>
 
-    <script src="/static/js/technician.js?v=7.0"></script>
+    <script src="/static/js/notifications.js"></script>
+    <script src="/static/js/technician.js?v=7.1"></script>
 </body>
 </html>
 
